@@ -1,5 +1,5 @@
 import { useId } from "react";
-import type { ArtTheme } from "@/lib/movies";
+import type { ArtTheme, CategorySymbol } from "@/lib/movies";
 
 const palettes: Record<ArtTheme, { sky: string; glow: string; moon: string; hills: string; leaf: string; ground: string }> = {
   forest: { sky: "#13273A", glow: "#467C83", moon: "#C2DACB", hills: "#244D55", leaf: "#568F7B", ground: "#213C43" },
@@ -67,17 +67,20 @@ export function SceneArt({ theme = "forest", compact = false }: { theme?: ArtThe
   );
 }
 
-export function CategoryArt({ symbol }: { symbol: "compass" | "popcorn" | "planet" | "magic" | "home" }) {
+export function CategoryArt({ symbol }: { symbol: CategorySymbol }) {
   const id = useId().replaceAll(":", "");
   return <svg viewBox="0 0 160 160" fill="none" aria-hidden="true">
     <defs><radialGradient id={id} cx=".4" cy=".3" r=".8"><stop stopColor="var(--category-light)" /><stop offset="1" stopColor="var(--category-dark)" /></radialGradient></defs>
     <circle cx="80" cy="84" r="61" fill={`url(#${id})`} /><circle cx="80" cy="84" r="52" stroke="white" strokeOpacity=".08" />
     <ellipse cx="80" cy="131" rx="32" ry="5" fill="#121B32" opacity=".2" />
+    {symbol === "clapper" && <g><rect x="44" y="66" width="72" height="54" rx="10" fill="#3B4559" stroke="#F4D59B" strokeWidth="3" /><path d="m42 56 68-16 4 16-68 16Z" fill="#E89B54" /><path d="m52 54 10-14m14 11 10-14m14 11 10-14" stroke="#2B3344" strokeWidth="5" strokeLinecap="round" /><path d="m73 81 20 12-20 12Z" fill="#F8E3B5" /><circle cx="52" cy="74" r="3" fill="#F4D59B" /></g>}
+    {symbol === "bolt" && <g><circle cx="80" cy="82" r="36" fill="#5B3A42" opacity=".55" /><path d="m88 38-28 44h22l-10 40 34-48H84Z" fill="#F6C467" stroke="#FFE9B3" strokeWidth="3" strokeLinejoin="round" /><path d="m46 54 8 6m60 36 8 6M48 106l8-6" stroke="#E88060" strokeWidth="4" strokeLinecap="round" /></g>}
     {symbol === "compass" && <g><path d="m51 47-9-11m67 12 10-11M49 116l-10 11m72-11 10 11" stroke="#DAB87F" strokeWidth="6" strokeLinecap="round" /><circle cx="80" cy="82" r="39" fill="#C78C4D" /><circle cx="80" cy="82" r="31" fill="#F4D59B" /><path d="m93 58-6 31-21 17 6-32Z" fill="#BE5F48" /><path d="m72 74 15 15-21 17Z" fill="#677B75" /><circle cx="80" cy="82" r="5" fill="#F8E8BC" /><path d="M80 48v6m0 56v6m-34-34h6m56 0h6" stroke="#825C3E" strokeWidth="3" /></g>}
     {symbol === "popcorn" && <g><path d="m48 75 8 51h49l9-51Z" fill="#F3D6B3" /><path d="m58 75 6 51h12V75m12 0v51h12l5-51" fill="#C76557" /><path d="M46 76c-15-8-8-27 6-27-5-21 17-29 28-16 12-13 32-2 27 14 20-2 26 21 7 29" fill="#F6DE9B" /><circle cx="59" cy="55" r="12" fill="#FFE9B3" /><circle cx="85" cy="46" r="12" fill="#FFF0C7" /><circle cx="100" cy="63" r="11" fill="#FFE9B3" /><path d="M48 78h66" stroke="#FCEDD6" strokeWidth="5" /><path d="m38 33 4-8m79 14 8 1" stroke="#E9BD76" strokeWidth="4" strokeLinecap="round" /></g>}
     {symbol === "planet" && <g transform="rotate(-25 80 80)"><circle cx="80" cy="80" r="34" fill="#D4B7DE" /><path d="M52 61q21 21 62 12m-65 2q32 28 61 17m-50 9q25 17 40 10" stroke="#9F84B3" strokeWidth="8" /><ellipse cx="80" cy="88" rx="61" ry="16" stroke="#E9D6B1" strokeWidth="8" /><path d="M135 73q25 31-55 31" stroke="#F5DFB6" strokeWidth="8" /><circle cx="38" cy="28" r="4" fill="#EAD3AF" /><path d="m124 29 2-7 2 7 7 2-7 2-2 7-2-7-7-2Z" fill="#F2DEB8" /></g>}
     {symbol === "magic" && <g><path d="m40 120 27-68h34l25 68q-43 22-86 0" fill="#8670AD" /><path d="m67 52 17-29 17 29" fill="#9F85BC" /><path d="M61 69q21 9 45 0" stroke="#E1BB74" strokeWidth="6" /><ellipse cx="83" cy="119" rx="49" ry="13" fill="#AA8ABF" /><path d="m81 84 3 9 9 1-7 6 2 9-7-5-8 5 3-9-7-6 9-1Z" fill="#EED19A" /><path d="m35 47 3-10 3 10 10 3-10 3-3 10-3-10-10-3Zm88 17 2-7 2 7 7 2-7 2-2 7-2-7-7-2Z" fill="#EAD6AB" /></g>}
     {symbol === "home" && <g><path d="M50 70h61v54H50Z" fill="#F0C2AE" /><path d="m38 72 43-36 43 36-8 10-35-29-35 29Z" fill="#BD746C" /><path d="M67 124V91h28v33" fill="#A87877" /><rect x="57" y="77" width="12" height="12" rx="2" fill="#F8E3B5" /><rect x="94" y="77" width="12" height="12" rx="2" fill="#F8E3B5" /><path d="M104 47V35h10v21" fill="#A87877" /><path d="M76 65c-10-11-17 3 5 13 22-10 15-24 5-13l-5 4Z" fill="#E7A08B" /><path d="m37 103-7-15m96 18 6-13" stroke="#91B3A0" strokeWidth="6" strokeLinecap="round" /></g>}
+    {symbol === "anime" && <g><path d="M42 74c8-24 68-24 76 0-4 28-22 44-38 44S46 102 42 74Z" fill="#F4DFC8" /><path d="M38 66c8-18 76-18 84 0l-6 14c-24-8-48-8-72 0Z" fill="#D96B59" /><circle cx="80" cy="65" r="7" fill="#F6C973" /><ellipse cx="64" cy="88" rx="6" ry="8" fill="#233246" /><ellipse cx="96" cy="88" rx="6" ry="8" fill="#233246" /><circle cx="66" cy="85" r="2.5" fill="#fff" /><circle cx="98" cy="85" r="2.5" fill="#fff" /><path d="M74 103q6 6 12 0" stroke="#7A564A" strokeWidth="3" strokeLinecap="round" /><path d="m112 44 3-9 3 9 9 3-9 3-3 9-3-9-9-3Z" fill="#FFE6A5" /></g>}
     <g fill="#F7E5BD" opacity=".7"><circle cx="26" cy="78" r="2.5" /><circle cx="133" cy="111" r="2" /><circle cx="116" cy="20" r="2.5" /></g>
   </svg>;
 }

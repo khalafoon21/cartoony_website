@@ -1,36 +1,67 @@
 "use client";
 
 import Image from "next/image";
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState, type CSSProperties } from "react";
 import { Icon, type IconName } from "./icon";
-import { LoginModal } from "./login-modal";
 
 export interface NavItem {
   id: string;
   label: string;
+  subtitle: string;
   href: string;
   icon: IconName;
   badge?: string;
 }
 
 export const defaultNavItems: NavItem[] = [
-  { id: "home", label: "الرئيسية", href: "#home", icon: "home" },
-  { id: "stories", label: "استكشف الحكايات", href: "#stories", icon: "film" },
-  { id: "franchises", label: "عوالم كارتوني", href: "#franchises", icon: "sparkles", badge: "مميز" },
-  { id: "categories", label: "التصنيفات", href: "#categories", icon: "grid" },
-  { id: "saved", label: "قائمتي", href: "#stories", icon: "heart" },
+  {
+    id: "home",
+    label: "الرئيسية",
+    subtitle: "العرض المميز الآن",
+    href: "#home",
+    icon: "home",
+  },
+  {
+    id: "stories",
+    label: "استكشف الحكايات",
+    subtitle: "مكتبة الأفلام الكاملة",
+    href: "#stories",
+    icon: "film",
+  },
+  {
+    id: "franchises",
+    label: "عوالم كارتوني",
+    subtitle: "السلاسل والشخصيات",
+    href: "#franchises",
+    icon: "sparkles",
+    badge: "حصري",
+  },
+  {
+    id: "categories",
+    label: "التصنيفات",
+    subtitle: "تصفح حسب المزاج",
+    href: "#categories",
+    icon: "grid",
+  },
+  {
+    id: "saved",
+    label: "قائمتي المفضلة",
+    subtitle: "حكاياتك المحفوظة",
+    href: "#stories",
+    icon: "heart",
+  },
 ];
 
 export interface SidebarProps {
-  onLogin?: () => void;
   activeSection?: string;
   className?: string;
 }
 
-export function Sidebar({ onLogin, activeSection, className = "" }: SidebarProps) {
+export function Sidebar({ activeSection, className = "" }: SidebarProps) {
   const [activeId, setActiveId] = useState<string>(activeSection || "home");
-  const [isHovered, setIsHovered] = useState(false);
-  const internalLoginRef = useRef<HTMLDialogElement>(null);
+  const [hoveredIndex, setHoveredIndex] = useState<number | null>(null);
+  const [isExpanded, setIsExpanded] = useState(false);
+  const sidebarRef = useRef<HTMLElement>(null);
 
   // Sync active section if passed from parent
   useEffect(() => {
@@ -39,7 +70,7 @@ export function Sidebar({ onLogin, activeSection, className = "" }: SidebarProps
     }
   }, [activeSection]);
 
-  // Observe sections on scroll to automatically highlight active item
+  // Scroll-spy via IntersectionObserver
   useEffect(() => {
     const sectionIds = ["home", "franchises", "categories", "stories"];
     const elements = sectionIds
@@ -56,8 +87,8 @@ export function Sidebar({ onLogin, activeSection, className = "" }: SidebarProps
         }
       },
       {
-        rootMargin: "-20% 0px -60% 0px",
-        threshold: 0.1,
+        rootMargin: "-20% 0px -55% 0px",
+        threshold: 0.12,
       }
     );
 
@@ -65,43 +96,68 @@ export function Sidebar({ onLogin, activeSection, className = "" }: SidebarProps
     return () => observer.disconnect();
   }, []);
 
-  const handleNavClick = useCallback(
-    (e: React.MouseEvent<HTMLAnchorElement>, item: NavItem) => {
-      setActiveId(item.id);
+  // Direct DOM cursor spotlight tracking (zero React re-renders)
+  const handleMouseMove = useCallback((e: React.MouseEvent<HTMLElement>) => {
+    const el = sidebarRef.current;
+    if (!el) return;
+    const rect = el.getBoundingClientRect();
+    const y = e.clientY - rect.top;
+    const x = e.clientX - rect.left;
+    el.style.setProperty("--mouse-y", `${y}px`);
+    el.style.setProperty("--mouse-x", `${x}px`);
+  }, []);
 
-      if (item.href.startsWith("#")) {
-        const target = document.querySelector(item.href);
-        if (target) {
-          e.preventDefault();
-          const prefersReduced = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
-          target.scrollIntoView({
-            behavior: prefersReduced ? "instant" : "smooth",
-            block: "start",
-          });
-          window.history.pushState(null, "", item.href);
-        }
+  const handleNavClick = useCallback((e: React.MouseEvent<HTMLAnchorElement>, item: NavItem) => {
+    setActiveId(item.id);
+
+    if (item.href.startsWith("#")) {
+      const target = document.querySelector(item.href);
+      if (target) {
+        e.preventDefault();
+        const prefersReduced = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+        target.scrollIntoView({
+          behavior: prefersReduced ? "instant" : "smooth",
+          block: "start",
+        });
+        window.history.pushState(null, "", item.href);
       }
-    },
-    []
+    }
+  }, []);
+
+  const activeIndex = Math.max(
+    0,
+    defaultNavItems.findIndex((item) => item.id === activeId)
   );
 
-  const handleLoginClick = useCallback(() => {
-    if (onLogin) {
-      onLogin();
-    } else {
-      internalLoginRef.current?.showModal();
-    }
-  }, [onLogin]);
+  const navStyle = {
+    "--active-index": activeIndex,
+    "--hover-index": hoveredIndex !== null ? hoveredIndex : activeIndex,
+    "--has-hover": hoveredIndex !== null ? 1 : 0,
+  } as CSSProperties;
 
   return (
     <>
+      {/* Ambient page backdrop dim when sidebar is expanded */}
+      <div
+        className={`sidebar-scrim ${isExpanded ? "is-visible" : ""}`}
+        aria-hidden="true"
+      />
+
       <aside
-        className={`sidebar ${isHovered ? "is-expanded" : ""} ${className}`}
+        ref={sidebarRef}
+        className={`sidebar ${isExpanded ? "is-expanded" : ""} ${className}`}
         aria-label="القائمة الجانبية الرئيسية"
-        onMouseEnter={() => setIsHovered(true)}
-        onMouseLeave={() => setIsHovered(false)}
+        onMouseEnter={() => setIsExpanded(true)}
+        onMouseLeave={() => {
+          setIsExpanded(false);
+          setHoveredIndex(null);
+        }}
+        onMouseMove={handleMouseMove}
       >
-        {/* Top Brand Logo */}
+        {/* Ambient cursor-tracking spotlight layer */}
+        <div className="sidebar-spotlight" aria-hidden="true" />
+
+        {/* Top Brand Logo Slot (Fixed vertical height to prevent icon jump) */}
         <div className="sidebar-header">
           <a
             href="#home"
@@ -109,12 +165,13 @@ export function Sidebar({ onLogin, activeSection, className = "" }: SidebarProps
             aria-label="كارتوني — العودة إلى الرئيسية"
             onClick={(e) => handleNavClick(e, defaultNavItems[0])}
           >
+            <div className="sidebar-logo-glow" aria-hidden="true" />
             <div className="sidebar-logo-wrap">
               <Image
                 src="/branding/cartoony-logo.png"
                 alt="كارتوني"
-                width={160}
-                height={102}
+                width={168}
+                height={108}
                 className="sidebar-logo-img"
                 priority
               />
@@ -122,34 +179,54 @@ export function Sidebar({ onLogin, activeSection, className = "" }: SidebarProps
           </a>
         </div>
 
-        {/* Navigation Items */}
-        <nav className="sidebar-nav" aria-label="أقسام الموقع">
-          {defaultNavItems.map((item) => {
+        {/* Navigation Items with Magnetic Sliding Gliders */}
+        <nav
+          className="sidebar-nav"
+          aria-label="أقسام الموقع"
+          style={navStyle}
+          onMouseLeave={() => setHoveredIndex(null)}
+        >
+          {/* Magnetic Hover Glider Capsule */}
+          <div className="sidebar-hover-glider" aria-hidden="true" />
+
+          {/* Sliding Active Selection Capsule & Glowing Torch Bar */}
+          <div className="sidebar-active-glider" aria-hidden="true">
+            <span className="sidebar-active-torch" />
+          </div>
+
+          {defaultNavItems.map((item, index) => {
             const isActive = activeId === item.id;
+            const isHovered = hoveredIndex === index;
             return (
               <a
                 key={item.id}
                 href={item.href}
                 onClick={(e) => handleNavClick(e, item)}
-                className={`sidebar-nav-item ${isActive ? "is-active" : ""}`}
+                onMouseEnter={() => setHoveredIndex(index)}
+                onFocus={() => setHoveredIndex(index)}
+                style={{ "--i": index } as CSSProperties}
+                className={`sidebar-nav-item icon-type-${item.icon} ${
+                  isActive ? "is-active" : ""
+                } ${isHovered ? "is-hovered" : ""}`}
                 aria-current={isActive ? "page" : undefined}
-                title={!isHovered ? item.label : undefined}
               >
-                {/* Visual active indicator bar on the right */}
-                <span className="sidebar-active-indicator" aria-hidden="true" />
-
-                {/* Animated Icon box */}
+                {/* Animated Icon Container */}
                 <span className="sidebar-icon-box">
                   <Icon name={item.icon} size={22} />
                 </span>
 
-                {/* Smooth expanding label */}
+                {/* Staggered Cascade Label & Micro-Subtitle */}
                 <span className="sidebar-label-box">
-                  <span className="sidebar-item-label">{item.label}</span>
-                  {item.badge && <span className="sidebar-item-badge">{item.badge}</span>}
+                  <span className="sidebar-label-text-group">
+                    <span className="sidebar-item-label">{item.label}</span>
+                    <span className="sidebar-item-subtitle">{item.subtitle}</span>
+                  </span>
+                  {item.badge && (
+                    <span className="sidebar-item-badge">{item.badge}</span>
+                  )}
                 </span>
 
-                {/* Native-style floating tooltip when collapsed */}
+                {/* Floating Glass Tooltip for Collapsed State */}
                 <span className="sidebar-tooltip" aria-hidden="true">
                   {item.label}
                 </span>
@@ -158,36 +235,8 @@ export function Sidebar({ onLogin, activeSection, className = "" }: SidebarProps
           })}
         </nav>
 
-        {/* Bottom User / Login Section */}
-        <div className="sidebar-footer">
-          <div className="sidebar-divider" />
-          <button
-            type="button"
-            onClick={handleLoginClick}
-            className="sidebar-user-card"
-            aria-label="تسجيل الدخول أو عرض الحساب"
-            title={!isHovered ? "تسجيل الدخول" : undefined}
-          >
-            <div className="sidebar-user-avatar">
-              <Icon name="user" size={20} />
-              <span className="sidebar-status-dot" title="حالة الحساب" />
-            </div>
-            <div className="sidebar-user-info">
-              <span className="sidebar-user-name">تسجيل الدخول</span>
-              <span className="sidebar-user-hint">انضم لعالمنا</span>
-            </div>
-            <span className="sidebar-user-arrow" aria-hidden="true">
-              <Icon name="arrow" size={16} />
-            </span>
-            <span className="sidebar-tooltip" aria-hidden="true">
-              تسجيل الدخول
-            </span>
-          </button>
-        </div>
+        <div className="sidebar-footer" aria-hidden="true" />
       </aside>
-
-      {/* Internal modal fallback when rendered standalone without onLogin */}
-      {!onLogin && <LoginModal ref={internalLoginRef} />}
     </>
   );
 }
