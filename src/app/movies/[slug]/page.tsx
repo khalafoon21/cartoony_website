@@ -1,4 +1,5 @@
 import Link from "next/link";
+import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 import type { CSSProperties } from "react";
 import { Icon } from "@/components/icon";
@@ -7,6 +8,24 @@ import { MovieRow } from "@/components/movie-row";
 import { getPublicContentBySlug } from "@/lib/movies-public";
 
 export const dynamic = "force-dynamic";
+
+export async function generateMetadata({ params }: {
+  params: Promise<{ slug: string }>;
+}): Promise<Metadata> {
+  const { slug } = await params;
+  const { item } = await getPublicContentBySlug(slug);
+  if (!item) return { robots: { index: false, follow: false } };
+  return {
+    title: item.title,
+    description: item.description,
+    alternates: { canonical: `/movies/${encodeURIComponent(item.slug)}` },
+    openGraph: {
+      title: item.title,
+      description: item.description,
+      ...(item.posterUrl ? { images: [item.posterUrl] } : {}),
+    },
+  };
+}
 
 export default async function MovieDetailsPage({
   params,

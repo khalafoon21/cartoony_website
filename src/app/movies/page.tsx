@@ -5,6 +5,7 @@ import { MovieCard } from "@/components/movie-card";
 import { getPublicPublishedMovies } from "@/lib/movies-public";
 
 export const dynamic = "force-dynamic";
+export const metadata = { title: "أفلام كرتون", alternates: { canonical: "/movies" } };
 
 export default async function MoviesListingPage() {
   const { ok, error, movies } = await getPublicPublishedMovies();

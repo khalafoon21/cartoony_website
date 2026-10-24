@@ -1,0 +1,11 @@
+.env*
+!.env.example
+.next/
+out/
+node_modules/
+*.tsbuildinfo
+**/*.mp4
+**/*.webm
+**/*.mov
+**/*.mkv
+**/*.avi

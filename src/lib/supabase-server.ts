@@ -83,7 +83,8 @@ function getApiHeaders(useServiceRole: boolean, allowFallback = false): Record<s
 
   return {
     apikey: key,
-    Authorization: `Bearer ${key}`,
+    ...(!key.startsWith("sb_") && key.split(".").length === 3
+      ? { Authorization: `Bearer ${key}` } : {}),
     "Content-Type": "application/json",
   };
 }

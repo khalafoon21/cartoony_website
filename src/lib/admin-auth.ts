@@ -1,5 +1,8 @@
+import "server-only";
+
 import crypto from "node:crypto";
 import { cookies, headers } from "next/headers";
+import { adminAuthRpc } from "./admin-store";
 
 export const ADMIN_SESSION_COOKIE =
   process.env.NODE_ENV === "production"
@@ -7,29 +10,6 @@ export const ADMIN_SESSION_COOKIE =
     : "cartoony_admin_session";
 
 const SESSION_DURATION_MS = 8 * 60 * 60 * 1000; // 8 hours
-const RATE_LIMIT_WINDOW_MS = 15 * 60 * 1000; // 15 minutes
-const RATE_LIMIT_MAX_ATTEMPTS = 5;
-
-type RateLimitRecord = {
-  attempts: number;
-  resetAt: number;
-};
-
-// In-memory rate limit store keyed by client IP
-const rateLimitStore = new Map<string, RateLimitRecord>();
-
-// In-memory revoked session token store (jti -> exp timestamp)
-const revokedJtiStore = new Map<string, number>();
-
-function pruneRevokedTokens(): void {
-  const now = Date.now();
-  for (const [jti, exp] of revokedJtiStore.entries()) {
-    if (now > exp) {
-      revokedJtiStore.delete(jti);
-    }
-  }
-}
-
 /**
  * Generates a salted scrypt hash in format `scrypt:<saltHex>:<hashHex>`
  * Used by admins in a local Node REPL to provision `ADMIN_PASSWORD_HASH`.
@@ -45,6 +25,7 @@ export function createPasswordHash(password: string): string {
  * using constant-time comparison (`crypto.timingSafeEqual`).
  */
 export function verifyPasswordHash(password: string, storedHash: string): boolean {
+  if (!/^scrypt:[a-f0-9]{32}:[a-f0-9]{128}$/i.test(storedHash.trim())) return false;
   const parts = storedHash.trim().split(":");
   if (parts.length !== 3 || parts[0] !== "scrypt") {
     return false;
@@ -77,7 +58,7 @@ export function isAdminProvisioned(): boolean {
   const email = process.env.ADMIN_EMAIL?.trim();
   const hash = process.env.ADMIN_PASSWORD_HASH?.trim();
   const secret = getSessionSecret();
-  return Boolean(email && hash && hash.startsWith("scrypt:") && secret);
+  return Boolean(email && hash && /^scrypt:[a-f0-9]{32}:[a-f0-9]{128}$/i.test(hash) && secret);
 }
 
 export function verifyAdminCredentials(email: string, password: string): boolean {
@@ -103,7 +84,7 @@ export function verifyAdminCredentials(email: string, password: string): boolean
   return emailMatches && passwordMatches;
 }
 
-export function createSessionToken(email: string): string | null {
+export async function createSessionToken(email: string): Promise<string | null> {
   const secret = getSessionSecret();
   if (!secret) return null;
 
@@ -122,11 +103,16 @@ export function createSessionToken(email: string): string | null {
     .update(payload)
     .digest("base64url");
 
-  return `${payload}.${signature}`;
+  const token = `${payload}.${signature}`;
+  try {
+    const { exp } = JSON.parse(Buffer.from(payload, "base64url").toString("utf8"));
+    if (!await adminAuthRpc<boolean>("cartoony_create_session", { p_hash: hashToken(token), p_expires: new Date(exp).toISOString() })) return null;
+    return token;
+  } catch { return null; }
 }
 
-export function verifySessionToken(token: string | undefined): { email: string } | null {
-  if (!token) return null;
+export async function verifySessionToken(token: string | undefined): Promise<{ email: string; id: string } | null> {
+  if (!token || token.length > 2048) return null;
   const secret = getSessionSecret();
   if (!secret) return null;
 
@@ -163,9 +149,9 @@ export function verifySessionToken(token: string | undefined): { email: string }
       decoded.role !== "admin" ||
       typeof decoded.sub !== "string" ||
       typeof decoded.exp !== "number" ||
+      !Number.isFinite(decoded.exp) ||
       typeof decoded.jti !== "string" ||
-      Date.now() > decoded.exp ||
-      revokedJtiStore.has(decoded.jti)
+      Date.now() >= decoded.exp
     ) {
       return null;
     }
@@ -175,13 +161,19 @@ export function verifySessionToken(token: string | undefined): { email: string }
       return null;
     }
 
-    return { email: decoded.sub };
+    const id = hashToken(token);
+    if (!await adminAuthRpc<boolean>("cartoony_session_active", { p_hash: id })) return null;
+    return { email: decoded.sub, id };
   } catch {
     return null;
   }
 }
 
-export async function getAdminSession(): Promise<{ email: string } | null> {
+function hashToken(token: string): string {
+  return crypto.createHash("sha256").update(token).digest("hex");
+}
+
+export async function getAdminSession(): Promise<{ email: string; id: string } | null> {
   const cookieStore = await cookies();
   const token = cookieStore.get(ADMIN_SESSION_COOKIE)?.value;
   return verifySessionToken(token);
@@ -202,23 +194,18 @@ export async function clearAdminSessionCookie(): Promise<void> {
   const cookieStore = await cookies();
   const token = cookieStore.get(ADMIN_SESSION_COOKIE)?.value;
   if (token) {
-    const [payload] = token.split(".");
-    if (payload) {
-      try {
-        const decoded = JSON.parse(Buffer.from(payload, "base64url").toString("utf8")) as {
-          jti?: string;
-          exp?: number;
-        };
-        if (decoded.jti && decoded.exp) {
-          pruneRevokedTokens();
-          revokedJtiStore.set(decoded.jti, decoded.exp);
-        }
-      } catch {
-        // Ignore malformed token on logout
-      }
+    // Do not report logout success before every instance can see the revocation.
+    if (!await adminAuthRpc<boolean>("cartoony_revoke_session", { p_hash: hashToken(token) })) {
+      throw new Error("تعذر إنهاء الجلسة. يرجى المحاولة مجددًا.");
     }
   }
-  cookieStore.delete(ADMIN_SESSION_COOKIE);
+  cookieStore.set(ADMIN_SESSION_COOKIE, "", {
+    httpOnly: true,
+    secure: process.env.NODE_ENV === "production",
+    sameSite: "lax",
+    path: "/",
+    maxAge: 0,
+  });
 }
 
 export async function getClientIdentifier(): Promise<string> {
@@ -230,40 +217,16 @@ export async function getClientIdentifier(): Promise<string> {
   return headerStore.get("x-real-ip") || "local-client";
 }
 
-export function checkLoginRateLimit(clientId: string): {
-  allowed: boolean;
-  retryAfterSeconds: number;
-} {
-  const now = Date.now();
-  const existing = rateLimitStore.get(clientId);
-
-  if (!existing || now > existing.resetAt) {
-    return { allowed: true, retryAfterSeconds: 0 };
+export async function checkLoginRateLimit(clientId: string): Promise<{
+  allowed: boolean; retryAfterSeconds: number;
+}> {
+  try {
+    const secret = getSessionSecret();
+    if (!secret) throw new Error("Missing configuration");
+    const p_key = crypto.createHmac("sha256", secret).update("login:" + clientId).digest("hex");
+    return await adminAuthRpc("cartoony_consume_login", { p_key });
+  } catch {
+    // Fail closed if shared state or its migration is unavailable.
+    return { allowed: false, retryAfterSeconds: 60 };
   }
-
-  if (existing.attempts >= RATE_LIMIT_MAX_ATTEMPTS) {
-    const retryAfterSeconds = Math.max(1, Math.ceil((existing.resetAt - now) / 1000));
-    return { allowed: false, retryAfterSeconds };
-  }
-
-  return { allowed: true, retryAfterSeconds: 0 };
-}
-
-export function recordFailedLoginAttempt(clientId: string): void {
-  const now = Date.now();
-  const existing = rateLimitStore.get(clientId);
-
-  if (!existing || now > existing.resetAt) {
-    rateLimitStore.set(clientId, {
-      attempts: 1,
-      resetAt: now + RATE_LIMIT_WINDOW_MS,
-    });
-    return;
-  }
-
-  existing.attempts += 1;
-}
-
-export function clearLoginRateLimit(clientId: string): void {
-  rateLimitStore.delete(clientId);
 }

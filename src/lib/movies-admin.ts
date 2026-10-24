@@ -1,6 +1,7 @@
 import "server-only";
 
 import { getAdminSession } from "./admin-auth";
+import { deleteStorageImageIfOwnedAndUnused } from "./storage-admin";
 import { executeAdminRead, executeAdminWrite } from "./supabase-server";
 
 export type PublicationStatus = "draft" | "published" | "archived";
@@ -498,6 +499,11 @@ export async function updateAdminMovieRecord(
     return { ok: false, error: "معرف الفيلم غير صالح." };
   }
 
+  const prevRead = await executeAdminRead<
+    Array<{ poster_url: string | null; backdrop_url: string | null }>
+  >("movies", `?select=poster_url,backdrop_url&id=eq.${movieId}&limit=1`);
+  const prevRow = prevRead.ok ? prevRead.data[0] : undefined;
+
   const { category_ids, ...movieFields } = payload;
   const updateBody: Record<string, unknown> = {
     ...movieFields,
@@ -523,6 +529,15 @@ export async function updateAdminMovieRecord(
   }
 
   const updated = writeRes.data[0];
+
+  // Clean up replaced owned storage images if no other movie references them
+  if (prevRow?.poster_url && prevRow.poster_url !== updated.poster_url) {
+    await deleteStorageImageIfOwnedAndUnused(prevRow.poster_url);
+  }
+  if (prevRow?.backdrop_url && prevRow.backdrop_url !== updated.backdrop_url) {
+    await deleteStorageImageIfOwnedAndUnused(prevRow.backdrop_url);
+  }
+
   const syncRes = await syncMovieCategories(updated.id, category_ids);
   if (!syncRes.ok) {
     return { ok: false, error: syncRes.error ?? "تعذر تحديث التصنيفات." };
@@ -543,6 +558,11 @@ export async function deleteAdminMovieRecord(
     return { ok: false, error: "معرف الفيلم غير صالح." };
   }
 
+  const prevRead = await executeAdminRead<
+    Array<{ poster_url: string | null; backdrop_url: string | null }>
+  >("movies", `?select=poster_url,backdrop_url&id=eq.${movieId}&limit=1`);
+  const prevRow = prevRead.ok ? prevRead.data[0] : undefined;
+
   const delRes = await executeAdminWrite(
     "movies",
     "DELETE",
@@ -552,6 +572,13 @@ export async function deleteAdminMovieRecord(
 
   if (!delRes.ok) {
     return { ok: false, error: delRes.error };
+  }
+
+  if (prevRow?.poster_url) {
+    await deleteStorageImageIfOwnedAndUnused(prevRow.poster_url);
+  }
+  if (prevRow?.backdrop_url) {
+    await deleteStorageImageIfOwnedAndUnused(prevRow.backdrop_url);
   }
 
   return { ok: true };

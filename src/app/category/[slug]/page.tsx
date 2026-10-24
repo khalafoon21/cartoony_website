@@ -1,4 +1,5 @@
 import Link from "next/link";
+import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 import type { CSSProperties } from "react";
 import { CategoryStrip } from "@/components/category-strip";
@@ -9,6 +10,15 @@ import { allMovies, categories } from "@/lib/movies";
 import { getPublicPublishedMovies } from "@/lib/movies-public";
 
 export const dynamic = "force-dynamic";
+
+export async function generateMetadata({ params }: {
+  params: Promise<{ slug: string }>;
+}): Promise<Metadata> {
+  const { slug } = await params;
+  const category = categories.find((item) => item.slug === slug);
+  if (!category) return { robots: { index: false, follow: false } };
+  return { alternates: { canonical: `/category/${category.slug}` } };
+}
 
 export default async function CategoryPage({
   params,

@@ -1,10 +1,14 @@
 import type { Metadata, Viewport } from "next";
 import { Sidebar } from "@/components/sidebar";
+import { SITE_URL } from "@/lib/site";
 import "./globals.css";
 
 export const metadata: Metadata = {
-  title: "كارتوني | لكل حكاية عالم",
-  description: "اكتشف عالم كارتوني؛ حكايات ملهمة ومغامرات ممتعة في واجهة عربية لكل العائلة. نموذج الواجهة للمرحلة الأولى.",
+  metadataBase: new URL(SITE_URL),
+  title: { default: "كارتوني | لكل حكاية عالم", template: "%s | كارتوني" },
+  description: "اكتشف عالم كارتوني؛ حكايات ملهمة ومغامرات ممتعة في واجهة عربية لكل العائلة.",
+  openGraph: { siteName: "كارتوني", locale: "ar_SA", type: "website" },
+  ...(process.env.VERCEL_ENV === "preview" ? { robots: { index: false, follow: false } } : {}),
 };
 
 export const viewport: Viewport = { themeColor: "#121B32" };

@@ -4,12 +4,9 @@ import { redirect } from "next/navigation";
 import {
   checkLoginRateLimit,
   clearAdminSessionCookie,
-  clearLoginRateLimit,
   createSessionToken,
-  getAdminSession,
   getClientIdentifier,
   isAdminProvisioned,
-  recordFailedLoginAttempt,
   setAdminSessionCookie,
   verifyAdminCredentials,
 } from "@/lib/admin-auth";
@@ -27,14 +24,13 @@ export async function loginAdminAction(
   formData: FormData
 ): Promise<AdminLoginState> {
   const clientId = await getClientIdentifier();
-  const rateLimit = checkLoginRateLimit(clientId);
+  const rateLimit = await checkLoginRateLimit(clientId);
 
   if (!rateLimit.allowed) {
     return { error: RATE_LIMIT_ERROR };
   }
 
   if (!isAdminProvisioned()) {
-    recordFailedLoginAttempt(clientId);
     return { error: GENERIC_AUTH_ERROR };
   }
 
@@ -42,33 +38,24 @@ export async function loginAdminAction(
   const password = String(formData.get("password") ?? "");
 
   if (!email || !password || email.length > 254 || password.length > 256) {
-    recordFailedLoginAttempt(clientId);
     return { error: GENERIC_AUTH_ERROR };
   }
 
   const isValid = verifyAdminCredentials(email, password);
   if (!isValid) {
-    recordFailedLoginAttempt(clientId);
     return { error: GENERIC_AUTH_ERROR };
   }
 
-  const token = createSessionToken(email);
+  const token = await createSessionToken(email);
   if (!token) {
-    recordFailedLoginAttempt(clientId);
     return { error: GENERIC_AUTH_ERROR };
   }
 
-  clearLoginRateLimit(clientId);
   await setAdminSessionCookie(token);
   redirect("/admin");
 }
 
 export async function logoutAdminAction(): Promise<void> {
-  const session = await getAdminSession();
-  if (!session) {
-    redirect("/admin/login");
-  }
-
   await clearAdminSessionCookie();
   redirect("/admin/login");
 }

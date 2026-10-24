@@ -1,8 +1,10 @@
 "use client";
 
 import { useRouter } from "next/navigation";
+import { uploadMovieImage } from "@/lib/upload-movie-image";
 import { useRef, useState, useTransition } from "react";
 import {
+  cleanupUnsavedUploadsAction,
   deleteMovieAction,
   saveMovieAction,
   toggleMoviePublishStatusAction,
@@ -17,6 +19,25 @@ import type {
 } from "@/lib/movies-admin";
 
 type StatusFilter = "all" | "published" | "draft" | "archived";
+
+type UploadStatusState = {
+  uploading: boolean;
+  progress: number;
+  message: string | null;
+  type: "success" | "error" | null;
+  tempUploadedUrl: string | null;
+};
+
+const INITIAL_UPLOAD_STATE: UploadStatusState = {
+  uploading: false,
+  progress: 0,
+  message: null,
+  type: null,
+  tempUploadedUrl: null,
+};
+
+const MAX_CLIENT_FILE_BYTES = 5 * 1024 * 1024;
+const ALLOWED_CLIENT_MIMES = new Set(["image/jpeg", "image/png", "image/webp"]);
 
 type FormValues = {
   movie_id: string;
@@ -127,6 +148,14 @@ export function MoviesCrudClient({
   const [isFormOpen, setIsFormOpen] = useState(false);
   const [formValues, setFormValues] = useState<FormValues>(EMPTY_FORM);
 
+  const [posterUpload, setPosterUpload] =
+    useState<UploadStatusState>(INITIAL_UPLOAD_STATE);
+  const [backdropUpload, setBackdropUpload] =
+    useState<UploadStatusState>(INITIAL_UPLOAD_STATE);
+
+  const posterFileInputRef = useRef<HTMLInputElement | null>(null);
+  const backdropFileInputRef = useRef<HTMLInputElement | null>(null);
+
   const [feedback, setFeedback] = useState<{
     type: "success" | "error";
     text: string;
@@ -153,7 +182,27 @@ export function MoviesCrudClient({
   const publishedCount = initialMovies.filter((m) => m.status === "published").length;
   const draftCount = initialMovies.filter((m) => m.status === "draft").length;
 
+  const isAnyUploading = posterUpload.uploading || backdropUpload.uploading;
+
+  function resetUploadStates(cleanupTempFiles = false) {
+    if (cleanupTempFiles) {
+      const urlsToClean = [
+        posterUpload.tempUploadedUrl,
+        backdropUpload.tempUploadedUrl,
+      ].filter((u): u is string => Boolean(u));
+      if (urlsToClean.length > 0) {
+        void cleanupUnsavedUploadsAction(urlsToClean, formValues.movie_id || undefined);
+      }
+    }
+    setPosterUpload(INITIAL_UPLOAD_STATE);
+    setBackdropUpload(INITIAL_UPLOAD_STATE);
+    if (posterFileInputRef.current) posterFileInputRef.current.value = "";
+    if (backdropFileInputRef.current) backdropFileInputRef.current.value = "";
+  }
+
   function openCreateForm() {
+    if (isAnyUploading || isPending) return;
+    resetUploadStates(true);
     setFormValues({
       ...EMPTY_FORM,
       category_ids: categories[0] ? [categories[0].id] : [],
@@ -163,15 +212,76 @@ export function MoviesCrudClient({
   }
 
   function openEditForm(movie: DbMovieRow) {
+    if (isAnyUploading || isPending) return;
+    resetUploadStates(true);
     setFormValues(mapMovieToForm(movie));
     setFeedback(null);
     setIsFormOpen(true);
     window.scrollTo({ top: 0, behavior: "smooth" });
   }
 
-  function closeForm() {
+  function closeForm(shouldCleanupUnsaved = true) {
+    if (isAnyUploading) return;
+    resetUploadStates(shouldCleanupUnsaved);
     setIsFormOpen(false);
     setFormValues(EMPTY_FORM);
+  }
+
+  async function handleArtworkFileSelect(
+    kind: "poster" | "backdrop",
+    e: React.ChangeEvent<HTMLInputElement>
+  ) {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    const setUploadState = kind === "poster" ? setPosterUpload : setBackdropUpload;
+    const currentUploadState = kind === "poster" ? posterUpload : backdropUpload;
+
+    if (!ALLOWED_CLIENT_MIMES.has(file.type)) {
+      setUploadState((prev) => ({
+        ...prev,
+        uploading: false,
+        progress: 0,
+        type: "error",
+        message: "يُسمح فقط بصور JPEG أو PNG أو WebP.",
+      }));
+      e.target.value = "";
+      return;
+    }
+
+    if (file.size <= 0 || file.size > MAX_CLIENT_FILE_BYTES) {
+      const sizeMb = (file.size / (1024 * 1024)).toFixed(2);
+      setUploadState((prev) => ({
+        ...prev,
+        uploading: false,
+        progress: 0,
+        type: "error",
+        message: `حجم الصورة (${sizeMb} ميجابايت) يتجاوز الحد الأقصى (5 ميجابايت).`,
+      }));
+      e.target.value = "";
+      return;
+    }
+
+    setUploadState((prev) => ({ ...prev, uploading: true, progress: 5, type: null, message: "جاري رفع الصورة والتحقق منها..." }));
+    try {
+      const uploadedUrl = await uploadMovieImage(file, kind,
+        formValues.slug || slugifyTitle(formValues.title_original) || "movie",
+        (progress) => setUploadState((prev) => ({ ...prev, progress })));
+      setFormValues((prev) => ({ ...prev, ...(kind === "poster" ? { poster_url: uploadedUrl } : { backdrop_url: uploadedUrl }) }));
+      setUploadState({ uploading: false, progress: 100, type: "success",
+        message: kind === "poster" ? "تم رفع صورة الملصق إلى Supabase Storage بنجاح." : "تم رفع صورة الخلفية إلى Supabase Storage بنجاح.",
+        tempUploadedUrl: uploadedUrl });
+      const otherArtworkUrl = kind === "poster" ? formValues.backdrop_url : formValues.poster_url;
+      if (currentUploadState.tempUploadedUrl && currentUploadState.tempUploadedUrl !== otherArtworkUrl) {
+        void cleanupUnsavedUploadsAction([currentUploadState.tempUploadedUrl]);
+      }
+    } catch (error) {
+      setUploadState((prev) => ({ ...prev, uploading: false, progress: 0, type: "error",
+        message: error instanceof Error ? error.message : "تعذر رفع الصورة. يرجى المحاولة مجددًا." }));
+    } finally {
+      const input = kind === "poster" ? posterFileInputRef.current : backdropFileInputRef.current;
+      if (input) input.value = "";
+    }
   }
 
   function toggleCategoryId(categoryId: string) {
@@ -207,6 +317,7 @@ export function MoviesCrudClient({
 
   function handleFormSubmit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
+    if (isAnyUploading) return;
     const formEl = e.currentTarget;
 
     // Sync aria-invalid across all required fields when submission is attempted
@@ -238,8 +349,8 @@ export function MoviesCrudClient({
         type: "success",
         text: result.message ?? "تم حفظ الفيلم بنجاح.",
       });
-      setIsFormOpen(false);
-      setFormValues(EMPTY_FORM);
+      // Saved images are protected by server-side reference checks; remove unused uploads.
+      closeForm(true);
       router.refresh();
     });
   }
@@ -298,7 +409,7 @@ export function MoviesCrudClient({
         text: `تم حذف فيلم «${targetTitle}» نهائيًا من قاعدة البيانات.`,
       });
       if (formValues.movie_id === targetId) {
-        closeForm();
+        closeForm(false);
       }
       router.refresh();
     });
@@ -361,7 +472,7 @@ export function MoviesCrudClient({
 
             <button
               type="button"
-              onClick={closeForm}
+              onClick={() => closeForm(true)}
               className="admin-secondary-btn"
             >
               <Icon name="close" size={15} />
@@ -618,50 +729,6 @@ export function MoviesCrudClient({
                 </select>
               </div>
 
-              {/* Poster URL */}
-              <div className="admin-form-field">
-                <label htmlFor="field-poster-url">رابط الملصق (Poster URL)</label>
-                <input
-                  id="field-poster-url"
-                  name="poster_url"
-                  type="text"
-                  dir="ltr"
-                  autoCorrect="off"
-                  autoCapitalize="off"
-                  spellCheck={false}
-                  value={formValues.poster_url}
-                  onChange={(e) =>
-                    setFormValues((prev) => ({
-                      ...prev,
-                      poster_url: e.target.value,
-                    }))
-                  }
-                  placeholder="https://example.com/poster.jpg أو /posters/movie.jpg"
-                />
-              </div>
-
-              {/* Backdrop URL */}
-              <div className="admin-form-field">
-                <label htmlFor="field-backdrop-url">رابط الخلفية (Backdrop URL)</label>
-                <input
-                  id="field-backdrop-url"
-                  name="backdrop_url"
-                  type="text"
-                  dir="ltr"
-                  autoCorrect="off"
-                  autoCapitalize="off"
-                  spellCheck={false}
-                  value={formValues.backdrop_url}
-                  onChange={(e) =>
-                    setFormValues((prev) => ({
-                      ...prev,
-                      backdrop_url: e.target.value,
-                    }))
-                  }
-                  placeholder="https://example.com/backdrop.jpg أو /backdrops/movie.jpg"
-                />
-              </div>
-
               {/* Art Theme */}
               <div className="admin-form-field">
                 <label htmlFor="field-theme">السمة اللونية البديلة (Theme)</label>
@@ -701,6 +768,241 @@ export function MoviesCrudClient({
                   }
                   placeholder="مثال: عالم الغابة المنسية"
                 />
+              </div>
+            </div>
+
+            {/* Artwork Uploads & URL Controls: Poster & Backdrop */}
+            <div className="admin-artwork-uploads-grid">
+              {/* Poster Upload & URL Card */}
+              <div className="admin-artwork-card">
+                <div className="admin-artwork-preview is-poster">
+                  {formValues.poster_url ? (
+                    // eslint-disable-next-line @next/next/no-img-element
+                    <img
+                      src={formValues.poster_url}
+                      alt="معاينة ملصق الفيلم"
+                    />
+                  ) : (
+                    <div className="admin-artwork-placeholder">
+                      <Icon name="film" size={22} />
+                      <span>معاينة الملصق</span>
+                    </div>
+                  )}
+                </div>
+
+                <div className="admin-artwork-controls">
+                  <div className="admin-label-row">
+                    <label htmlFor="field-poster-url">
+                      ملصق الفيلم (Poster — رفع مباشر أو رابط)
+                    </label>
+                    <span className="admin-field-hint">JPEG / PNG / WebP · بحد أقصى 5MB</span>
+                  </div>
+
+                  <div className="admin-upload-btn-row">
+                    <input
+                      ref={posterFileInputRef}
+                      id="file-poster-upload"
+                      type="file"
+                      accept="image/jpeg,image/png,image/webp"
+                      className="visually-hidden"
+                      disabled={posterUpload.uploading || isPending}
+                      onChange={(e) => handleArtworkFileSelect("poster", e)}
+                    />
+                    <label
+                      htmlFor="file-poster-upload"
+                      className={`admin-upload-trigger-btn ${
+                        posterUpload.uploading ? "is-disabled" : ""
+                      }`}
+                    >
+                      <Icon name="plus" size={14} />
+                      <span>
+                        {posterUpload.uploading
+                          ? `جاري الرفع (${posterUpload.progress}%)...`
+                          : formValues.poster_url
+                          ? "استبدال صورة الملصق من جهازك"
+                          : "رفع صورة الملصق من جهازك"}
+                      </span>
+                    </label>
+
+                    {formValues.poster_url && (
+                      <button
+                        type="button"
+                        className="admin-inline-helper-btn"
+                        disabled={posterUpload.uploading || isPending}
+                        onClick={() => {
+                          if (posterUpload.tempUploadedUrl) {
+                            void cleanupUnsavedUploadsAction(
+                              [posterUpload.tempUploadedUrl],
+                              formValues.movie_id || undefined
+                            );
+                          }
+                          setPosterUpload(INITIAL_UPLOAD_STATE);
+                          setFormValues((prev) => ({ ...prev, poster_url: "" }));
+                        }}
+                      >
+                        مسح الصورة
+                      </button>
+                    )}
+                  </div>
+
+                  {posterUpload.uploading && (
+                    <div className="admin-upload-progress" aria-hidden="true">
+                      <div
+                        className="admin-upload-progress-bar"
+                        style={{ width: `${posterUpload.progress}%` }}
+                      />
+                    </div>
+                  )}
+
+                  {posterUpload.message && (
+                    <div
+                      className={`admin-upload-status ${
+                        posterUpload.type === "error"
+                          ? "is-error"
+                          : posterUpload.type === "success"
+                          ? "is-success"
+                          : ""
+                      }`}
+                      role={posterUpload.type === "error" ? "alert" : "status"}
+                    >
+                      {posterUpload.message}
+                    </div>
+                  )}
+
+                  <input
+                    id="field-poster-url"
+                    name="poster_url"
+                    type="text"
+                    dir="ltr"
+                    autoCorrect="off"
+                    autoCapitalize="off"
+                    spellCheck={false}
+                    value={formValues.poster_url}
+                    onChange={(e) =>
+                      setFormValues((prev) => ({
+                        ...prev,
+                        poster_url: e.target.value,
+                      }))
+                    }
+                    placeholder="https://... أو ارفع صورة من جهازك ليتم تعبئة الرابط تلقائيًا"
+                  />
+                </div>
+              </div>
+
+              {/* Backdrop Upload & URL Card */}
+              <div className="admin-artwork-card">
+                <div className="admin-artwork-preview is-backdrop">
+                  {formValues.backdrop_url ? (
+                    // eslint-disable-next-line @next/next/no-img-element
+                    <img
+                      src={formValues.backdrop_url}
+                      alt="معاينة خلفية الفيلم"
+                    />
+                  ) : (
+                    <div className="admin-artwork-placeholder">
+                      <Icon name="sparkles" size={22} />
+                      <span>معاينة الخلفية العريضة</span>
+                    </div>
+                  )}
+                </div>
+
+                <div className="admin-artwork-controls">
+                  <div className="admin-label-row">
+                    <label htmlFor="field-backdrop-url">
+                      خلفية الفيلم (Backdrop — رفع مباشر أو رابط)
+                    </label>
+                    <span className="admin-field-hint">JPEG / PNG / WebP · بحد أقصى 5MB</span>
+                  </div>
+
+                  <div className="admin-upload-btn-row">
+                    <input
+                      ref={backdropFileInputRef}
+                      id="file-backdrop-upload"
+                      type="file"
+                      accept="image/jpeg,image/png,image/webp"
+                      className="visually-hidden"
+                      disabled={backdropUpload.uploading || isPending}
+                      onChange={(e) => handleArtworkFileSelect("backdrop", e)}
+                    />
+                    <label
+                      htmlFor="file-backdrop-upload"
+                      className={`admin-upload-trigger-btn ${
+                        backdropUpload.uploading ? "is-disabled" : ""
+                      }`}
+                    >
+                      <Icon name="plus" size={14} />
+                      <span>
+                        {backdropUpload.uploading
+                          ? `جاري الرفع (${backdropUpload.progress}%)...`
+                          : formValues.backdrop_url
+                          ? "استبدال صورة الخلفية من جهازك"
+                          : "رفع صورة الخلفية من جهازك"}
+                      </span>
+                    </label>
+
+                    {formValues.backdrop_url && (
+                      <button
+                        type="button"
+                        className="admin-inline-helper-btn"
+                        disabled={backdropUpload.uploading || isPending}
+                        onClick={() => {
+                          if (backdropUpload.tempUploadedUrl) {
+                            void cleanupUnsavedUploadsAction(
+                              [backdropUpload.tempUploadedUrl],
+                              formValues.movie_id || undefined
+                            );
+                          }
+                          setBackdropUpload(INITIAL_UPLOAD_STATE);
+                          setFormValues((prev) => ({ ...prev, backdrop_url: "" }));
+                        }}
+                      >
+                        مسح الصورة
+                      </button>
+                    )}
+                  </div>
+
+                  {backdropUpload.uploading && (
+                    <div className="admin-upload-progress" aria-hidden="true">
+                      <div
+                        className="admin-upload-progress-bar"
+                        style={{ width: `${backdropUpload.progress}%` }}
+                      />
+                    </div>
+                  )}
+
+                  {backdropUpload.message && (
+                    <div
+                      className={`admin-upload-status ${
+                        backdropUpload.type === "error"
+                          ? "is-error"
+                          : backdropUpload.type === "success"
+                          ? "is-success"
+                          : ""
+                      }`}
+                      role={backdropUpload.type === "error" ? "alert" : "status"}
+                    >
+                      {backdropUpload.message}
+                    </div>
+                  )}
+
+                  <input
+                    id="field-backdrop-url"
+                    name="backdrop_url"
+                    type="text"
+                    dir="ltr"
+                    autoCorrect="off"
+                    autoCapitalize="off"
+                    spellCheck={false}
+                    value={formValues.backdrop_url}
+                    onChange={(e) =>
+                      setFormValues((prev) => ({
+                        ...prev,
+                        backdrop_url: e.target.value,
+                      }))
+                    }
+                    placeholder="https://... أو ارفع صورة من جهازك ليتم تعبئة الرابط تلقائيًا"
+                  />
+                </div>
               </div>
             </div>
 
@@ -881,13 +1183,15 @@ export function MoviesCrudClient({
             <div className="admin-form-actions">
               <button
                 type="submit"
-                disabled={isPending}
+                disabled={isPending || isAnyUploading}
                 className="admin-primary-submit-btn"
               >
                 <Icon name="check" size={16} />
                 <span>
                   {isPending
                     ? "جاري الحفظ في قاعدة البيانات..."
+                    : isAnyUploading
+                    ? "يرجى انتظار اكتمال رفع الصور..."
                     : formValues.movie_id
                     ? "حفظ التعديلات"
                     : "إضافة الفيلم"}
@@ -896,8 +1200,8 @@ export function MoviesCrudClient({
 
               <button
                 type="button"
-                disabled={isPending}
-                onClick={closeForm}
+                disabled={isPending || isAnyUploading}
+                onClick={() => closeForm(true)}
                 className="admin-secondary-btn"
               >
                 <span>إلغاء</span>

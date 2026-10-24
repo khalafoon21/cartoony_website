@@ -8,6 +8,7 @@ import {
   updateAdminMovieRecord,
   validateMoviePayload,
 } from "@/lib/movies-admin";
+import { deleteStorageImageIfOwnedAndUnused } from "@/lib/storage-admin";
 import { executeAdminWrite } from "@/lib/supabase-server";
 
 export type MovieActionResult = {
@@ -147,4 +148,18 @@ export async function toggleMoviePublishStatusAction(
         ? "تم نشر الفيلم ليصبح متاحًا للزوار."
         : "تم تحويل الفيلم إلى مسودة (غير ظاهر للزوار).",
   };
+}
+
+export async function cleanupUnsavedUploadsAction(
+  urls: string[],
+  excludeMovieId?: string
+): Promise<void> {
+  const session = await getAdminSession();
+  if (!session) return;
+
+  for (const url of urls.slice(0, 10)) {
+    if (url) {
+      await deleteStorageImageIfOwnedAndUnused(url, excludeMovieId);
+    }
+  }
 }
