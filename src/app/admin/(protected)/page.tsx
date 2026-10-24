@@ -9,7 +9,8 @@ import {
   getAdminDashboardOverview,
   MOCK_EPISODES_TOTAL,
 } from "@/lib/admin-data";
-import { allMovies, categories } from "@/lib/movies";
+import { allMovies } from "@/lib/admin-demo-catalog";
+import { categories } from "@/lib/movies";
 
 export default async function AdminDashboardPage() {
   const session = await getAdminSession();

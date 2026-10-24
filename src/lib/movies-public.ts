@@ -1,58 +1,54 @@
 import "server-only";
 
-import {
-  allMovies,
-  type ArtTheme,
-  type CategorySlug,
-  type HomepageSectionConfig,
-  type Movie,
+import type {
+  ArtTheme,
+  CategorySlug,
+  ContentFormat,
+  HomepageSectionConfig,
+  Movie,
 } from "./movies";
-import { formatArabicDuration, type DbMovieRow } from "./movies-admin";
+import type { DbMovieCategoryJoin, DbMovieRow } from "./movies-admin";
+import { isSampleContent } from "./sample-content";
 import { executePublicRead } from "./supabase-server";
 
+type DbSeriesRow = Omit<DbMovieRow, "duration_minutes" | "duration_label_ar" | "movie_categories"> & {
+  series_categories?: DbMovieCategoryJoin[];
+};
+
+type PublicResult = { ok: boolean; error?: string; movies: Movie[] };
+
 const VALID_CATEGORY_SLUGS = new Set<CategorySlug>([
-  "movies",
-  "action",
-  "adventure",
-  "comedy",
-  "family",
-  "fantasy",
-  "anime",
+  "movies", "action", "adventure", "comedy", "family", "fantasy", "anime",
 ]);
+const VALID_THEMES = new Set<ArtTheme>(["forest", "space", "ocean", "desert", "sky"]);
+const PUBLIC_ERROR = "تعذر تحميل بعض الحكايات الآن. يرجى المحاولة مرة أخرى بعد قليل.";
+const SLUG_PATTERN = /^[a-z0-9]+(?:-[a-z0-9]+)*$/;
 
-const VALID_THEMES = new Set<ArtTheme>([
-  "forest",
-  "space",
-  "ocean",
-  "desert",
-  "sky",
-]);
-
-export function mapDbMovieToPublicMovie(row: DbMovieRow): Movie {
-  const sortedJoins = [...(row.movie_categories ?? [])].sort((a, b) =>
+function mapContent(row: DbMovieRow | DbSeriesRow, format: ContentFormat): Movie {
+  const joins = "series_categories" in row ? row.series_categories :
+    "movie_categories" in row ? row.movie_categories : [];
+  const sortedJoins = [...(joins ?? [])].sort((a, b) =>
     a.is_primary === b.is_primary ? 0 : a.is_primary ? -1 : 1
   );
-
   const categorySlugs: CategorySlug[] = [];
   const categoryLabels: string[] = [];
 
   for (const join of sortedJoins) {
     const slug = join.categories?.slug as CategorySlug | undefined;
-    const titleAr = join.categories?.title_ar;
     if (slug && VALID_CATEGORY_SLUGS.has(slug) && !categorySlugs.includes(slug)) {
       categorySlugs.push(slug);
-    }
-    if (titleAr && !categoryLabels.includes(titleAr)) {
-      categoryLabels.push(titleAr);
+      categoryLabels.push(join.categories!.title_ar);
     }
   }
 
-  const primarySlug: CategorySlug = categorySlugs[0] ?? "movies";
-  const primaryLabel: string = categoryLabels[0] ?? "أفلام";
-
-  const theme: ArtTheme = VALID_THEMES.has(row.theme as ArtTheme)
-    ? (row.theme as ArtTheme)
-    : "forest";
+  let duration = "";
+  if ("duration_minutes" in row) {
+    const hours = Math.floor(row.duration_minutes / 60);
+    const minutes = row.duration_minutes % 60;
+    duration = row.duration_label_ar || [
+      hours ? `${hours} ساعة` : "", minutes ? `${minutes} دقيقة` : "",
+    ].filter(Boolean).join(" و");
+  }
 
   return {
     id: row.id,
@@ -62,165 +58,117 @@ export function mapDbMovieToPublicMovie(row: DbMovieRow): Movie {
     franchise: row.franchise_ar || row.title_ar,
     englishTitle: row.title_original,
     description: row.description_ar,
-    category: primarySlug,
-    categoryLabel: primaryLabel,
-    categories: categorySlugs.length > 0 ? categorySlugs : ["movies"],
-    categoryLabels: categoryLabels.length > 0 ? categoryLabels : ["أفلام"],
+    category: categorySlugs[0] ?? (format === "movie" ? "movies" : "all"),
+    categoryLabel: categoryLabels[0] ?? (format === "movie" ? "أفلام" : "مسلسلات"),
+    categories: categorySlugs,
+    categoryLabels,
     posterUrl: row.poster_url,
     backdropUrl: row.backdrop_url,
-    ageRating: row.age_rating || "6+",
+    ageRating: row.age_rating || undefined,
     year: row.release_year,
-    duration: row.duration_label_ar || formatArabicDuration(row.duration_minutes) || `${row.duration_minutes} دقيقة`,
+    duration,
     rating: Number(row.rating).toFixed(1),
-    theme,
+    theme: VALID_THEMES.has(row.theme as ArtTheme) ? row.theme as ArtTheme : "forest",
     accent: row.accent_color || "#F5A623",
     audioBadge: row.audio_badge === "subtitled" ? "مترجم" : "مدبلج",
-    format: "movie",
+    format,
     featured: Boolean(row.is_featured),
     mostWatched: Boolean(row.is_most_watched),
     recentlyAdded: Boolean(row.is_recently_added),
   };
 }
 
-/**
- * Fetches published movies from Supabase using the least-privilege public key.
- * Explicitly excludes drafts and archived records.
- */
-export async function getPublicPublishedMovies(): Promise<{
-  ok: boolean;
-  error?: string;
-  movies: Movie[];
-}> {
-  const res = await executePublicRead<DbMovieRow[]>(
-    "movies",
-    "?select=*,movie_categories(category_id,is_primary,categories(id,slug,title_ar))&status=eq.published&order=created_at.desc"
-  );
-
-  if (!res.ok) {
-    return { ok: false, error: res.error, movies: [] };
-  }
-
-  const publishedOnly = res.data
-    .filter((row) => row.status === "published")
-    .map(mapDbMovieToPublicMovie);
-
-  return { ok: true, movies: publishedOnly };
+export function mapDbMovieToPublicMovie(row: DbMovieRow): Movie {
+  return mapContent(row, "movie");
 }
 
-/**
- * Fetches a single published movie by slug from Supabase (or unchanged series by slug).
- * Draft/unpublished movies are strictly excluded and return `null`.
- */
-export async function getPublicContentBySlug(slug: string): Promise<{
-  ok: boolean;
-  error?: string;
-  item: Movie | null;
-  related: Movie[];
+function contentQuery(format: ContentFormat): string {
+  const join = format === "movie" ? "movie_categories" : "series_categories";
+  return `?select=*,${join}(category_id,is_primary,categories(id,slug,title_ar))&status=eq.published&order=created_at.desc`;
+}
+
+async function getPublishedContent(format: ContentFormat): Promise<PublicResult> {
+  const result = await executePublicRead<Array<DbMovieRow | DbSeriesRow>>(
+    format === "movie" ? "movies" : "series", contentQuery(format)
+  );
+  if (!result.ok) return { ok: false, error: PUBLIC_ERROR, movies: [] };
+  return {
+    ok: true,
+    movies: result.data
+      .filter((row) => row.status === "published" && !isSampleContent(row))
+      .map((row) => mapContent(row, format)),
+  };
+}
+
+export function getPublicPublishedMovies(): Promise<PublicResult> {
+  return getPublishedContent("movie");
+}
+
+export function getPublicPublishedSeries(): Promise<PublicResult> {
+  return getPublishedContent("series");
+}
+
+export async function getPublicPublishedCatalog(): Promise<PublicResult> {
+  const [movies, series] = await Promise.all([
+    getPublicPublishedMovies(), getPublicPublishedSeries(),
+  ]);
+  return {
+    ok: movies.ok && series.ok,
+    error: movies.error || series.error,
+    movies: [...movies.movies, ...series.movies],
+  };
+}
+
+/** Reads only the selected table, so movie and series slugs cannot collide. */
+export async function getPublicContentBySlug(slug: string, format: ContentFormat = "movie"): Promise<{
+  ok: boolean; error?: string; item: Movie | null; related: Movie[];
 }> {
   const cleanSlug = slug.trim().toLowerCase();
-  if (!cleanSlug) {
-    return { ok: true, item: null, related: [] };
-  }
+  if (!SLUG_PATTERN.test(cleanSlug)) return { ok: true, item: null, related: [] };
 
-  const [singleRes, allPubRes] = await Promise.all([
-    executePublicRead<DbMovieRow[]>(
-      "movies",
-      `?select=*,movie_categories(category_id,is_primary,categories(id,slug,title_ar))&slug=eq.${encodeURIComponent(cleanSlug)}&status=eq.published&limit=1`
+  const [single, catalog] = await Promise.all([
+    executePublicRead<Array<DbMovieRow | DbSeriesRow>>(
+      format === "movie" ? "movies" : "series",
+      `${contentQuery(format)}&slug=eq.${encodeURIComponent(cleanSlug)}&limit=1`
     ),
-    getPublicPublishedMovies(),
+    getPublicPublishedCatalog(),
   ]);
-
-  const seriesItems = allMovies.filter((m) => m.format === "series");
-
-  if (!singleRes.ok) {
-    return { ok: false, error: singleRes.error, item: null, related: [] };
-  }
-
-  const matchedDbRow = singleRes.data.find((r) => r.status === "published");
-  if (matchedDbRow) {
-    const movie = mapDbMovieToPublicMovie(matchedDbRow);
-    const otherPublishedMovies = allPubRes.movies.filter((m) => m.id !== movie.id);
-    const related = [...otherPublishedMovies, ...seriesItems].slice(0, 6);
-    return { ok: true, item: movie, related };
-  }
-
-  // Keep series data unchanged for now (only match format === "series")
-  const matchedSeries = seriesItems.find((s) => s.slug === cleanSlug) ?? null;
-  if (matchedSeries) {
-    const related = [
-      ...allPubRes.movies,
-      ...seriesItems.filter((s) => s.id !== matchedSeries.id),
-    ].slice(0, 6);
-    return { ok: true, item: matchedSeries, related };
-  }
-
-  return { ok: true, item: null, related: [] };
+  if (!single.ok) return { ok: false, error: PUBLIC_ERROR, item: null, related: [] };
+  const row = single.data.find((entry) => entry.status === "published" && !isSampleContent(entry));
+  if (!row) return { ok: true, item: null, related: [] };
+  const item = mapContent(row, format);
+  const related = catalog.movies
+    .filter((other) => other.format !== item.format || other.id !== item.id)
+    .slice(0, 6);
+  return { ok: true, item, related };
 }
 
-/**
- * Builds homepage sections combining real published movies from Supabase
- * with the unchanged series catalog.
- */
 export async function getPublicHomepageSections(): Promise<{
-  ok: boolean;
-  error?: string;
-  publishedMovies: Movie[];
-  sections: HomepageSectionConfig[];
+  ok: boolean; error?: string; heroSlides: Movie[]; sections: HomepageSectionConfig[];
 }> {
-  const pubRes = await getPublicPublishedMovies();
-  const publishedMovies = pubRes.movies;
-  const seriesItems = allMovies.filter((m) => m.format === "series");
-
-  const mostWatchedMovies = publishedMovies.filter((m) => m.mostWatched);
-  const recentlyAddedMovies = publishedMovies.filter((m) => m.recentlyAdded);
-
-  // Ensure newly published movies appear in Most Watched / Recently Added if none explicitly flagged yet
-  const effectiveMostWatchedMovies =
-    mostWatchedMovies.length > 0 ? mostWatchedMovies : publishedMovies;
-  const effectiveRecentlyAddedMovies =
-    recentlyAddedMovies.length > 0 ? recentlyAddedMovies : publishedMovies;
-
+  const catalog = await getPublicPublishedCatalog();
+  const featured = catalog.movies.filter((item) => item.featured);
   const sections: HomepageSectionConfig[] = [
     {
-      id: "most-watched",
-      eyebrow: "الأكثر شعبية الآن",
-      title: "الأكثر مشاهدة",
-      subtitle: "الحكايات التي أحبّها الجمهور هذا الأسبوع",
-      items: [
-        ...effectiveMostWatchedMovies,
-        ...seriesItems.filter((s) => s.mostWatched),
-      ],
+      id: "most-watched", eyebrow: "الأكثر شعبية الآن", title: "الأكثر مشاهدة",
+      subtitle: "مختارات من مكتبة كارتوني", items: catalog.movies.filter((item) => item.mostWatched),
     },
     {
-      id: "recently-added",
-      eyebrow: "جديد مكتبة كارتوني",
-      title: "أُضيف حديثاً",
-      subtitle: "أحدث الإصدارات والمغامرات الحصرية",
-      items: [
-        ...effectiveRecentlyAddedMovies,
-        ...seriesItems.filter((s) => s.recentlyAdded),
-      ],
+      id: "recently-added", eyebrow: "جديد مكتبة كارتوني", title: "أُضيف حديثاً",
+      subtitle: "حكايات جديدة في المكتبة", items: catalog.movies.filter((item) => item.recentlyAdded),
     },
     {
-      id: "cartoon-movies",
-      eyebrow: "سهرات سينمائية",
-      title: "أفلام كرتون",
-      subtitle: "أفلام رسوم متحركة كاملة من قاعدة بيانات كارتوني",
-      items: publishedMovies,
+      id: "cartoon-movies", eyebrow: "سهرات سينمائية", title: "أفلام كرتون",
+      subtitle: "أفلام رسوم متحركة لكل العائلة", items: catalog.movies.filter((item) => item.format === "movie"),
     },
     {
-      id: "cartoon-series",
-      eyebrow: "حلقات متجددة",
-      title: "مسلسلات كرتون",
-      subtitle: "مواسم شيّقة ومغامرات متتابعة",
-      items: seriesItems,
+      id: "cartoon-series", eyebrow: "حكايات متتابعة", title: "مسلسلات كرتون",
+      subtitle: "اكتشف مسلسلات مكتبة كارتوني", items: catalog.movies.filter((item) => item.format === "series"),
     },
   ];
-
   return {
-    ok: pubRes.ok,
-    error: pubRes.error,
-    publishedMovies,
-    sections,
+    ok: catalog.ok, error: catalog.error,
+    heroSlides: (featured.length ? featured : catalog.movies).slice(0, 5),
+    sections: sections.filter((section) => section.items.length > 0),
   };
 }

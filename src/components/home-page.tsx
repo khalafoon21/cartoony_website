@@ -1,29 +1,30 @@
 "use client";
 
-import { useCallback, useRef, useState, type CSSProperties } from "react";
-import {
-  homepageSections,
-  movies,
-  type HomepageSectionConfig,
-} from "@/lib/movies";
-import { closeTopLayer } from "@/lib/top-layer";
+import { useCallback, useState, type CSSProperties } from "react";
+import type { HomepageSectionConfig, Movie } from "@/lib/movies";
 import { CategoryStrip } from "./category-strip";
 import { HeroSlider } from "./hero-slider";
 import { Icon } from "./icon";
-import { SceneArt } from "./illustrations";
 import { MovieRow } from "./movie-row";
 
 function FranchiseRow({
+  slides,
   selected,
   onSelect,
 }: {
+  slides: Movie[];
   selected: number;
   onSelect: (index: number) => void;
 }) {
+  if (slides.length === 0) return null;
+
   return (
     <section className="franchises" id="franchises" aria-label="عوالم كارتوني">
-      <div className="franchise-track">
-        {movies.map((movie, index) => {
+      <div
+        className="franchise-track published-franchise-track"
+        style={{ "--franchise-count": slides.length } as CSSProperties}
+      >
+        {slides.map((movie, index) => {
           const isSelected = selected === index;
           return (
             <button
@@ -36,12 +37,14 @@ function FranchiseRow({
             >
               <span className="franchise-glow" aria-hidden="true" />
               <span className="franchise-star" aria-hidden="true">
-                {["✦", "◌", "≋", "☀", "☁"][index]}
+                {["✦", "◌", "≋", "☀", "☁"][index % 5]}
               </span>
-              <span className="franchise-title">{movie.franchise}</span>
-              <span className="franchise-english" dir="ltr">
-                {movie.englishTitle}
-              </span>
+              <span className="franchise-title">{movie.franchise || movie.title}</span>
+              {movie.englishTitle && (
+                <span className="franchise-english" dir="ltr">
+                  {movie.englishTitle}
+                </span>
+              )}
               <span className="franchise-torch" aria-hidden="true" />
             </button>
           );
@@ -52,15 +55,16 @@ function FranchiseRow({
 }
 
 export function HomePage({
-  sections = homepageSections,
+  sections,
+  heroSlides,
   dbError,
 }: {
-  sections?: HomepageSectionConfig[];
+  sections: HomepageSectionConfig[];
+  heroSlides: Movie[];
   dbError?: string;
-} = {}) {
+}) {
   const [selected, setSelected] = useState(0);
   const [savedIds, setSavedIds] = useState<string[]>([]);
-  const previewRef = useRef<HTMLDialogElement>(null);
 
   const handleToggleSave = useCallback((id: string) => {
     setSavedIds((prev) =>
@@ -68,11 +72,11 @@ export function HomePage({
     );
   }, []);
 
-  const handleClosePreview = useCallback(() => {
-    closeTopLayer(previewRef.current);
-  }, []);
-
-  const currentMovie = movies[selected];
+  const safeIndex = heroSlides.length > 0
+    ? ((selected % heroSlides.length) + heroSlides.length) % heroSlides.length
+    : 0;
+  const currentMovie = heroSlides[safeIndex] ?? null;
+  const visibleSections = sections.filter((section) => section.items.length > 0);
 
   return (
     <>
@@ -81,106 +85,50 @@ export function HomePage({
       </a>
       <main id="main-content" className="site-main" tabIndex={-1}>
         <HeroSlider
-          slides={movies}
-          activeIndex={selected}
+          slides={heroSlides}
+          activeIndex={safeIndex}
           savedIds={savedIds}
           onToggleSave={handleToggleSave}
           onSelectSlide={setSelected}
-          onWatch={() => previewRef.current?.showModal()}
+          errorMessage={dbError}
         />
-        <FranchiseRow selected={selected} onSelect={setSelected} />
+        <FranchiseRow slides={heroSlides} selected={safeIndex} onSelect={setSelected} />
         <CategoryStrip />
 
-        <div id="stories" className="homepage-rows-stack">
-          {sections.map((section) => (
-            <MovieRow
-              key={section.id}
-              id={section.id}
-              eyebrow={section.eyebrow}
-              title={section.title}
-              subtitle={section.subtitle}
-              movies={section.items}
-              savedIds={savedIds}
-              featuredId={currentMovie.id}
-              viewAllHref={section.id === "cartoon-movies" ? "/movies" : undefined}
-              errorMessage={section.id === "cartoon-movies" ? dbError : undefined}
-              emptyMessage={
-                section.id === "cartoon-movies"
-                  ? "لا توجد أفلام منشورة في قاعدة البيانات حالياً."
-                  : undefined
-              }
-            />
-          ))}
-        </div>
+        {dbError && heroSlides.length > 0 && (
+          <div className="content-section">
+            <div className="public-state-box is-error" role="alert"><p>{dbError}</p></div>
+          </div>
+        )}
+
+          <div id="stories" className="homepage-rows-stack">
+            {visibleSections.map((section) => (
+              <MovieRow
+                key={section.id}
+                id={section.id}
+                eyebrow={section.eyebrow}
+                title={section.title}
+                subtitle={section.subtitle}
+                movies={section.items}
+                savedIds={savedIds}
+                featuredId={currentMovie?.id}
+                viewAllHref={section.id === "cartoon-movies" ? "/movies" : undefined}
+              />
+            ))}
+          </div>
 
         <footer className="site-footer">
           <span>
             كارتوني<span className="footer-dot">.</span> <small>لكل حكاية عالم</small>
           </span>
           <p>
-            صُنع بشغف للخيال <Icon name="heart" size={13} />{" "}
-            <span>واجهة تجريبية · المرحلة الأولى</span>
+            صُنع بشغف للخيال <Icon name="heart" size={13} />
           </p>
           <a href="#home" className="footer-top-link">
             إلى الأعلى ↑
           </a>
         </footer>
       </main>
-
-      <dialog
-        ref={previewRef}
-        className="preview-dialog"
-        aria-labelledby="preview-title"
-        style={{ "--theme-accent": currentMovie.accent } as CSSProperties}
-        onCancel={(event) => {
-          event.preventDefault();
-          handleClosePreview();
-        }}
-        onClick={(event) => {
-          if (event.target === event.currentTarget) handleClosePreview();
-        }}
-      >
-        <button
-          type="button"
-          className="icon-button dialog-close"
-          onClick={handleClosePreview}
-          aria-label="إغلاق"
-        >
-          <Icon name="close" />
-        </button>
-
-        <div className="preview-banner">
-          <SceneArt theme={currentMovie.theme} compact />
-          <span className="preview-banner-badge">{currentMovie.categoryLabel}</span>
-        </div>
-
-        <span className="eyebrow">من عالم كارتوني · {currentMovie.franchise}</span>
-        <h2 id="preview-title">{currentMovie.title}</h2>
-        <p className="preview-subtitle">{currentMovie.subtitle}</p>
-
-        <div className="preview-meta">
-          <span>{currentMovie.year}</span>
-          <span className="meta-dot" />
-          <span>{currentMovie.duration}</span>
-          <span className="meta-dot" />
-          <span className="rating">
-            <Icon name="star" size={14} />
-            <b dir="ltr">{currentMovie.rating}</b>
-          </span>
-        </div>
-
-        <p>{currentMovie.description}</p>
-
-        <div className="preview-notice">
-          <Icon name="sparkles" size={18} />
-          <span>هذه حكاية تجريبية لعرض التصميم السينمائي. المشاهدة الحية ستتوفر في المرحلة القادمة.</span>
-        </div>
-
-        <button type="button" className="primary-button" onClick={handleClosePreview}>
-          <span>العودة إلى الحكايات</span>
-          <Icon name="arrow" size={18} />
-        </button>
-      </dialog>
     </>
   );
 }

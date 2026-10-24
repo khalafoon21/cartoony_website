@@ -6,8 +6,8 @@ import { CategoryStrip } from "@/components/category-strip";
 import { Icon } from "@/components/icon";
 import { CategoryArt } from "@/components/illustrations";
 import { MovieCard } from "@/components/movie-card";
-import { allMovies, categories } from "@/lib/movies";
-import { getPublicPublishedMovies } from "@/lib/movies-public";
+import { categories } from "@/lib/movies";
+import { getPublicPublishedCatalog } from "@/lib/movies-public";
 
 export const dynamic = "force-dynamic";
 
@@ -32,20 +32,16 @@ export default async function CategoryPage({
     notFound();
   }
 
-  const { ok, error, movies: publishedMovies } = await getPublicPublishedMovies();
-  const seriesItems = allMovies.filter((m) => m.format === "series");
+  const { ok, error, movies: publishedMovies } = await getPublicPublishedCatalog();
 
   const matchingMovies =
     activeCategory.slug === "movies"
-      ? publishedMovies
-      : [
-          ...publishedMovies.filter(
+      ? publishedMovies.filter((item) => item.format === "movie")
+      : publishedMovies.filter(
             (m) =>
               m.category === activeCategory.slug ||
               m.categories?.includes(activeCategory.slug)
-          ),
-          ...seriesItems.filter((s) => s.category === activeCategory.slug),
-        ];
+          );
 
   return (
     <main id="main-content" className="site-main" tabIndex={-1}>
@@ -96,15 +92,16 @@ export default async function CategoryPage({
           </div>
         </div>
 
-        {!ok && error ? (
+        {!ok && error && (
           <div className="public-state-box is-error" role="alert">
             <p>{error}</p>
           </div>
-        ) : matchingMovies.length === 0 ? (
+        )}
+        {matchingMovies.length === 0 ? ok ? (
           <div className="public-state-box" role="status">
             <p>لا توجد عروض منشورة في تصنيف «{activeCategory.label}» حالياً.</p>
           </div>
-        ) : (
+        ) : null : (
           <div className="movie-grid">
             {matchingMovies.map((movie) => (
               <MovieCard key={movie.id} movie={movie} />

@@ -1,9 +1,11 @@
 "use client";
 
 import { useCallback, useEffect, useState, type CSSProperties, type KeyboardEvent } from "react";
+import Link from "next/link";
+import { getContentHref } from "@/lib/content-links";
 import type { Movie } from "@/lib/movies";
 import { Icon } from "./icon";
-import { SceneArt } from "./illustrations";
+import { PublishedArtwork } from "./published-artwork";
 
 export type HeroSliderProps = {
   slides: Movie[];
@@ -12,7 +14,7 @@ export type HeroSliderProps = {
   autoPlayMs?: number;
   onSelectSlide: (index: number) => void;
   onToggleSave: (id: string) => void;
-  onWatch: () => void;
+  errorMessage?: string;
 };
 
 export function HeroSlider({
@@ -22,7 +24,7 @@ export function HeroSlider({
   autoPlayMs = 7000,
   onSelectSlide,
   onToggleSave,
-  onWatch,
+  errorMessage,
 }: HeroSliderProps) {
   const [isPaused, setIsPaused] = useState(false);
   const [reducedMotion, setReducedMotion] = useState(false);
@@ -73,7 +75,23 @@ export function HeroSlider({
     [handleNext, handlePrev]
   );
 
-  if (!movie) return null;
+  if (!movie) {
+    return (
+      <section className="hero hero-empty" id="home" aria-labelledby="hero-title">
+        <div className="hero-art-stack" aria-hidden="true">
+          <div className="hero-art is-active"><PublishedArtwork className="hero-real-backdrop" /></div>
+        </div>
+        <div className="hero-content">
+          <p className="eyebrow">أهلاً بك في كارتوني</p>
+          <h1 id="hero-title">لكل حكاية عالم</h1>
+          <div className={`hero-empty-message ${errorMessage ? "is-error" : ""}`} role={errorMessage ? "alert" : "status"}>
+            <p>{errorMessage ? "تعذّر تحميل الحكايات الآن" : "لا توجد حكايات منشورة حالياً"}</p>
+            <span>{errorMessage || "تظهر الحكايات هنا عند نشرها."}</span>
+          </div>
+        </div>
+      </section>
+    );
+  }
 
   return (
     <section
@@ -100,7 +118,11 @@ export function HeroSlider({
               key={slide.id}
               className={`hero-art ${isActive ? "is-active" : ""}`}
             >
-              <SceneArt theme={slide.theme} />
+              <PublishedArtwork
+                src={slide.backdropUrl || slide.posterUrl}
+                className="hero-real-backdrop"
+                eager={index === safeIndex}
+              />
             </div>
           );
         })}
@@ -111,40 +133,42 @@ export function HeroSlider({
         key={movie.id}
         aria-live={isPaused ? "polite" : "off"}
       >
-        <p className="hero-english hero-stagger" dir="ltr" style={{ "--step": 0 } as CSSProperties}>
-          {movie.englishTitle}
-        </p>
+        {movie.englishTitle && (
+          <p className="hero-english hero-stagger" dir="ltr" style={{ "--step": 0 } as CSSProperties}>
+            {movie.englishTitle}
+          </p>
+        )}
 
         <h1 id="hero-title" className="hero-stagger" style={{ "--step": 1 } as CSSProperties}>
           {movie.title}
         </h1>
 
-        <p className="hero-subtitle hero-stagger" style={{ "--step": 2 } as CSSProperties}>
-          {movie.subtitle}
-        </p>
+        {movie.subtitle && (
+          <p className="hero-subtitle hero-stagger" style={{ "--step": 2 } as CSSProperties}>
+            {movie.subtitle}
+          </p>
+        )}
 
         <div className="movie-meta hero-stagger" style={{ "--step": 3 } as CSSProperties}>
-          <span className="meta-pill">{movie.year}</span>
-          <span className="meta-dot" />
-          <span className="meta-pill is-category">{movie.categoryLabel}</span>
-          <span className="meta-dot" />
-          <span>{movie.duration}</span>
-          <span className="age-badge" dir="ltr">
-            6+
-          </span>
+          {Boolean(movie.year) && <span className="meta-pill">{movie.year}</span>}
+          {movie.categoryLabel && <span className="meta-pill is-category">{movie.categoryLabel}</span>}
+          {movie.duration && <span>{movie.duration}</span>}
+          {movie.ageRating && <span className="age-badge" dir="ltr">{movie.ageRating}</span>}
         </div>
 
-        <p className="hero-description hero-stagger" style={{ "--step": 4 } as CSSProperties}>
-          {movie.description}
-        </p>
+        {movie.description && (
+          <p className="hero-description hero-stagger" style={{ "--step": 4 } as CSSProperties}>
+            {movie.description}
+          </p>
+        )}
 
         <div className="hero-actions hero-stagger" style={{ "--step": 5 } as CSSProperties}>
-          <button type="button" className="primary-button" onClick={onWatch}>
+          <Link className="primary-button" href={getContentHref(movie)}>
             <span className="play-icon-wrap">
               <Icon name="play" size={20} />
             </span>
             <span>اكتشف الحكاية</span>
-          </button>
+          </Link>
 
           <button
             type="button"
@@ -161,20 +185,19 @@ export function HeroSlider({
           </span>
         </div>
 
-        <div className="hero-footnote hero-stagger" style={{ "--step": 6 } as CSSProperties}>
-          <span className="rating">
-            <Icon name="star" size={15} />
-            <b dir="ltr">{movie.rating}</b>
-          </span>
-          <span>خيال بلا حدود</span>
-          <span className="meta-dot" />
-          <span>متعة لكل العائلة</span>
-        </div>
+        {movie.rating && (
+          <div className="hero-footnote hero-stagger" style={{ "--step": 6 } as CSSProperties}>
+            <span className="rating">
+              <Icon name="star" size={15} />
+              <b dir="ltr">{movie.rating}</b>
+            </span>
+          </div>
+        )}
       </div>
 
-      <div className="hero-pagination" role="group" aria-label="التنقل بين الحكايات المميزة">
+      {count > 1 && <div className="hero-pagination" role="group" aria-label="التنقل بين الحكايات المميزة">
         <span className="slide-count" dir="ltr">
-          <b>0{safeIndex + 1}</b> / 0{count}
+          <b>{String(safeIndex + 1).padStart(2, "0")}</b> / {String(count).padStart(2, "0")}
         </span>
 
         <div className="hero-indicators">
@@ -213,9 +236,7 @@ export function HeroSlider({
             <Icon name="arrow" size={15} />
           </button>
         </div>
-      </div>
-
-      <span className="original-art-note">رسومات وحكايات تجريبية</span>
+      </div>}
     </section>
   );
 }

@@ -1,5 +1,19 @@
 # Vercel deployment checklist — cartoony.site
 
+## Public-content cleanup deployment
+
+This change requires no database migration, seed replay, new dependency or new environment variable. It performs public SELECT reads only. Existing records, seed files, migrations, admin authentication and artwork uploads are preserved. Known fictional seed entries are hidden from public pages by exact slug + Arabic title + original title signatures in `src/lib/sample-content.ts`; real edited entries are not excluded solely because they reuse a slug. Legacy fixtures remain isolated in the server-only admin preview catalog.
+
+1. Commit the frontend and regression-test changes on a branch and push it to `khalafoon21/cartoony_website`. Open a pull request into `main`.
+2. In the existing Vercel project, confirm this GitHub repository is connected and the Production branch is `main`. Keep the repository root, Next.js preset, Node.js 24.x, existing lockfile/install detection, build command `npm run build` and default output.
+3. Keep the existing Supabase and admin variables from `.env.example` in Production and Preview. Public pages require the project URL and public publishable/anon key; no privileged key is sent to browsers. Never upload `.env.local` to GitHub.
+4. Verify the branch Preview: real featured titles/artwork, movie/series detail links, category filtering, empty library, hidden empty rows, and database-unavailable state. A seed-only database should display the empty state. Existing admin login and movie editing should still work.
+5. Merge the pull request into `main` to trigger the production deployment. If automatic deployment is disabled, create a deployment from that commit in Vercel. Verify the deployed commit and the public routes after it reaches Ready.
+
+Local checks: `node --test tests/*.test.cjs`, `npm run build`, `npm run typecheck`. Keep the database setup notes below for existing platform prerequisites; this frontend change does not require reapplying them.
+
+References: [Vercel Git deployments](https://vercel.com/docs/git), [Vercel environment variables](https://vercel.com/docs/environment-variables).
+
 The production blockers are addressed in code. **Apply the migrations before enabling the updated admin area.** No production database, Storage settings, DNS or deployment has been changed automatically.
 
 ## Exact Supabase setup (operator action)

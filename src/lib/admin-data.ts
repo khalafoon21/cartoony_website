@@ -1,4 +1,5 @@
-import { allMovies, categories } from "./movies";
+import { allMovies } from "./admin-demo-catalog";
+import { categories } from "./movies";
 import { fetchTableExactCount, getSupabaseEnvStatus } from "./supabase-server";
 import type { IconName } from "@/components/icon";
 
