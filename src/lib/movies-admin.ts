@@ -52,6 +52,7 @@ export type DbMovieRow = {
   is_featured: boolean;
   is_most_watched: boolean;
   is_recently_added: boolean;
+  metadata?: Record<string, unknown>;
   status: PublicationStatus;
   published_at: string | null;
   created_at: string;
@@ -79,6 +80,7 @@ export type ValidatedMoviePayload = {
   is_featured: boolean;
   is_most_watched: boolean;
   is_recently_added: boolean;
+  metadata?: Record<string, unknown>;
   status: PublicationStatus;
   category_ids: string[];
 };
@@ -219,6 +221,10 @@ export function validateMoviePayload(raw: {
   is_featured?: boolean;
   is_most_watched?: boolean;
   is_recently_added?: boolean;
+  video_url?: string;
+  subtitle_url?: string;
+  subtitle_lang?: string;
+  metadata?: Record<string, unknown>;
   status?: string;
   category_ids?: string[];
 }): { ok: true; data: ValidatedMoviePayload } | { ok: false; error: string } {
@@ -311,6 +317,33 @@ export function validateMoviePayload(raw: {
     )
   );
 
+  const rawVideo = String(raw.video_url ?? "").trim();
+  if (rawVideo && !isValidUrlOrRelativePath(rawVideo)) {
+    return { ok: false, error: "رابط مصدر الفيديو غير صالح. يجب أن يبدأ بـ https:// أو http:// أو /." };
+  }
+
+  const rawSubtitle = String(raw.subtitle_url ?? "").trim();
+  if (rawSubtitle && !isValidUrlOrRelativePath(rawSubtitle)) {
+    return { ok: false, error: "رابط ملف الترجمة غير صالح. يجب أن يبدأ بـ https:// أو http:// أو /." };
+  }
+
+  const metadata: Record<string, unknown> = {
+    ...(raw.metadata ?? {}),
+  };
+  if (rawVideo) {
+    metadata.video_url = rawVideo;
+  } else if ("video_url" in metadata) {
+    delete metadata.video_url;
+  }
+
+  if (rawSubtitle) {
+    metadata.subtitle_url = rawSubtitle;
+    metadata.subtitle_lang = String(raw.subtitle_lang ?? "ar").trim().slice(0, 10) || "ar";
+  } else if ("subtitle_url" in metadata) {
+    delete metadata.subtitle_url;
+    delete metadata.subtitle_lang;
+  }
+
   return {
     ok: true,
     data: {
@@ -333,6 +366,7 @@ export function validateMoviePayload(raw: {
       is_featured: Boolean(raw.is_featured),
       is_most_watched: Boolean(raw.is_most_watched),
       is_recently_added: Boolean(raw.is_recently_added),
+      metadata,
       status,
       category_ids,
     },

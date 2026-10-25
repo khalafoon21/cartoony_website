@@ -6,7 +6,7 @@ import type { IconName } from "@/components/icon";
 export type DataOrigin = "database" | "catalog" | "mock";
 
 export type AdminNavSection = {
-  id: "dashboard" | "movies" | "series" | "categories" | "settings";
+  id: "dashboard" | "movies" | "series" | "homepage" | "categories" | "settings";
   label: string;
   subtitle: string;
   href: string;
@@ -52,14 +52,21 @@ export const adminNavSections: AdminNavSection[] = [
     id: "series",
     label: "المسلسلات",
     subtitle: "المواسم والحلقات",
-    href: "/admin#series",
+    href: "/admin/series",
     icon: "sparkles",
+  },
+  {
+    id: "homepage",
+    label: "الصفحة الرئيسية",
+    subtitle: "إدارة الواجهة والأقسام",
+    href: "/admin/homepage",
+    icon: "grid",
   },
   {
     id: "categories",
     label: "التصنيفات",
-    subtitle: "الأقسام والوسوم",
-    href: "/admin#categories",
+    subtitle: "إدارة الأقسام والوسوم",
+    href: "/admin/categories",
     icon: "grid",
   },
   {

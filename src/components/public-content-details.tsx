@@ -7,11 +7,13 @@ import { PublishedArtwork } from "@/components/published-artwork";
 import { MovieRow } from "@/components/movie-row";
 import { getPublicContentBySlug } from "@/lib/movies-public";
 import { getContentHref } from "@/lib/content-links";
+import { SITE_URL } from "@/lib/site";
 import type { ContentFormat } from "@/lib/movies";
 
 export async function getContentMetadata(slug: string, format: ContentFormat): Promise<Metadata> {
   const { item } = await getPublicContentBySlug(slug, format);
   if (!item) return { robots: { index: false, follow: false } };
+  const ogImage = item.backdropUrl || item.posterUrl;
   return {
     title: item.title,
     description: item.description,
@@ -19,7 +21,14 @@ export async function getContentMetadata(slug: string, format: ContentFormat): P
     openGraph: {
       title: item.title,
       description: item.description,
-      ...(item.posterUrl ? { images: [item.posterUrl] } : {}),
+      type: format === "movie" ? "video.movie" : "video.tv_show",
+      ...(ogImage ? { images: [ogImage] } : {}),
+    },
+    twitter: {
+      card: "summary_large_image",
+      title: item.title,
+      description: item.description,
+      ...(ogImage ? { images: [ogImage] } : {}),
     },
   };
 }
@@ -59,8 +68,34 @@ export async function PublicContentDetails({
       ? movie.categoryLabels
       : [movie.categoryLabel];
 
+  const movieJsonLd = {
+    "@context": "https://schema.org",
+    "@type": "Movie",
+    name: movie.title,
+    alternateName: movie.englishTitle || undefined,
+    description: movie.description,
+    image: movie.posterUrl || movie.backdropUrl || undefined,
+    datePublished: `${movie.year}-01-01`,
+    inLanguage: "ar",
+    ...(Number(movie.rating) > 0
+      ? {
+          aggregateRating: {
+            "@type": "AggregateRating",
+            ratingValue: movie.rating,
+            bestRating: "10",
+            worstRating: "0",
+          },
+        }
+      : {}),
+    url: `${SITE_URL}${getContentHref(movie)}`,
+  };
+
   return (
     <main id="main-content" className="site-main" tabIndex={-1}>
+      <script
+        type="application/ld+json"
+        dangerouslySetInnerHTML={{ __html: JSON.stringify(movieJsonLd) }}
+      />
       <section
         className="hero"
         aria-labelledby="movie-detail-title"
@@ -97,9 +132,14 @@ export async function PublicContentDetails({
           <p className="hero-description">{movie.description}</p>
 
           <div className="hero-actions">
-            <Link href="/movies" className="primary-button">
-              <Icon name="film" size={20} />
-              <span>تصفح الأفلام</span>
+            <Link href={`/watch/movies/${movie.slug}`} className="primary-button">
+              <Icon name="play" size={20} />
+              <span>مشاهدة الفيلم</span>
+            </Link>
+
+            <Link href="/movies" className="text-button">
+              <Icon name="film" size={18} />
+              <span>تصفح كل الأفلام</span>
             </Link>
 
             <Link href="/" className="text-button">

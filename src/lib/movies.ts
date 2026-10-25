@@ -25,7 +25,64 @@ export type AudioBadge = "مدبلج" | "مترجم";
 
 export type ContentFormat = "movie" | "series";
 
-export type MovieSectionId = "most-watched" | "recently-added" | "cartoon-movies" | "cartoon-series";
+export type MovieSectionId =
+  | "editors-picks"
+  | "most-watched"
+  | "recently-added"
+  | "cartoon-movies"
+  | "cartoon-series";
+
+export type HomepageSectionSetting = {
+  id: MovieSectionId;
+  title: string;
+  eyebrow: string;
+  subtitle: string;
+  enabled: boolean;
+  order: number;
+};
+
+export const DEFAULT_HOMEPAGE_SECTIONS: HomepageSectionSetting[] = [
+  {
+    id: "editors-picks",
+    title: "مختارات كارتوني",
+    eyebrow: "توصيات خاصة",
+    subtitle: "حكايات مختارة بعناية ننصح بمشاهدتها",
+    enabled: true,
+    order: 1,
+  },
+  {
+    id: "recently-added",
+    title: "أُضيف حديثاً",
+    eyebrow: "جديد مكتبة كارتوني",
+    subtitle: "أحدث الأعمال المنشورة في كارتوني",
+    enabled: true,
+    order: 2,
+  },
+  {
+    id: "cartoon-movies",
+    title: "أفلام كرتون",
+    eyebrow: "سهرات سينمائية",
+    subtitle: "أفلام رسوم متحركة كاملة من قاعدة بيانات كارتوني",
+    enabled: true,
+    order: 3,
+  },
+  {
+    id: "cartoon-series",
+    title: "مسلسلات كرتون",
+    eyebrow: "حلقات متسلسلة",
+    subtitle: "مواسم كاملة لأشهر كرتون الأجيال والأنمي العائلي",
+    enabled: true,
+    order: 4,
+  },
+  {
+    id: "most-watched",
+    title: "الأكثر شعبية",
+    eyebrow: "الأكثر شعبية الآن",
+    subtitle: "الأعمال الأكثر إقبالاً لدى متابعي كارتوني",
+    enabled: true,
+    order: 5,
+  },
+];
 
 export type Movie = {
   id: string;
@@ -52,6 +109,10 @@ export type Movie = {
   featured?: boolean;
   mostWatched?: boolean;
   recentlyAdded?: boolean;
+  videoUrl?: string | null;
+  subtitleUrl?: string | null;
+  subtitleLang?: string;
+  metadata?: Record<string, unknown>;
 };
 
 export type CategoryItem = {

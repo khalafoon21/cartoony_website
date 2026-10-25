@@ -1,6 +1,30 @@
 import type { CSSProperties } from "react";
 
-export type IconName = "home" | "search" | "film" | "grid" | "user" | "play" | "plus" | "check" | "close" | "arrow" | "star" | "sparkles" | "moon" | "heart";
+export type IconName =
+  | "home"
+  | "search"
+  | "film"
+  | "grid"
+  | "user"
+  | "play"
+  | "plus"
+  | "check"
+  | "close"
+  | "arrow"
+  | "star"
+  | "sparkles"
+  | "moon"
+  | "heart"
+  | "pencil"
+  | "trash"
+  | "settings"
+  | "volume"
+  | "volumeMute"
+  | "subtitles"
+  | "maximize"
+  | "minimize"
+  | "cast"
+  | "castConnected";
 
 const paths: Record<IconName, React.ReactNode> = {
   home: <><path d="m3 10 9-7 9 7v10a1 1 0 0 1-1 1h-5v-7H9v7H4a1 1 0 0 1-1-1Z" /></>,
@@ -17,8 +41,66 @@ const paths: Record<IconName, React.ReactNode> = {
   sparkles: <><path d="m12 3 2.5 6.5L21 12l-6.5 2.5L12 21l-2.5-6.5L3 12l6.5-2.5Z" /><path d="M20 2v4M18 4h4" /></>,
   moon: <path d="M20.5 14A9 9 0 0 1 10 3.5 9 9 0 1 0 20.5 14Z" />,
   heart: <path d="M20.8 4.6a5.5 5.5 0 0 0-7.8 0L12 5.7l-1.1-1.1a5.5 5.5 0 0 0-7.8 7.8L12 21l8.8-8.6a5.5 5.5 0 0 0 0-7.8Z" />,
+  pencil: <path d="M17 3a2.85 2.83 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5Z" />,
+  trash: <><path d="M3 6h18M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2" /></>,
+  settings: (
+    <>
+      <circle cx="12" cy="12" r="3" />
+      <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1Z" />
+    </>
+  ),
+  volume: (
+    <>
+      <polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5" />
+      <path d="M15.54 8.46a5 5 0 0 1 0 7.07" />
+      <path d="M19.07 4.93a10 10 0 0 1 0 14.14" />
+    </>
+  ),
+  volumeMute: (
+    <>
+      <polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5" />
+      <line x1="23" y1="9" x2="17" y2="15" />
+      <line x1="17" y1="9" x2="23" y2="15" />
+    </>
+  ),
+  subtitles: (
+    <>
+      <rect x="2" y="4" width="20" height="16" rx="2" />
+      <path d="M7 15h3M14 15h3M7 11h10" />
+    </>
+  ),
+  maximize: (
+    <>
+      <path d="M8 3H5a2 2 0 0 0-2 2v3M21 8V5a2 2 0 0 0-2-2h-3M3 16v3a2 2 0 0 0 2 2h3M16 21h3a2 2 0 0 0 2-2v-3" />
+    </>
+  ),
+  minimize: (
+    <>
+      <path d="M4 14h6v6M20 10h-6V4M14 10l7-7M3 21l7-7" />
+    </>
+  ),
+  cast: (
+    <>
+      <path d="M2 16.1A5 5 0 0 1 5.9 20" />
+      <path d="M2 12.05A9 9 0 0 1 9.95 20" />
+      <path d="M2 8A13 13 0 0 1 14 20" />
+      <path d="M2 20h.01" />
+      <path d="M22 18.5V5a2 2 0 0 0-2-2H4a2 2 0 0 0-2 2v2" />
+      <path d="M18 20h2a2 2 0 0 0 2-2v-5" />
+    </>
+  ),
+  castConnected: (
+    <>
+      <path d="M2 16.1A5 5 0 0 1 5.9 20" fill="currentColor" />
+      <path d="M2 12.05A9 9 0 0 1 9.95 20" />
+      <path d="M2 8A13 13 0 0 1 14 20" />
+      <circle cx="2.5" cy="19.5" r="1.5" fill="currentColor" />
+      <path d="M22 18.5V5a2 2 0 0 0-2-2H4a2 2 0 0 0-2 2v2" />
+      <path d="M18 20h2a2 2 0 0 0 2-2v-5" />
+    </>
+  ),
 };
 
-export function Icon({ name, size = 24, style }: { name: IconName; size?: number; style?: CSSProperties }) {
-  return <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true" style={style}>{paths[name]}</svg>;
+export function Icon({ name, size = 24, style, className }: { name: IconName; size?: number; style?: CSSProperties; className?: string }) {
+  return <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true" style={style} className={className}>{paths[name]}</svg>;
 }

@@ -5,7 +5,16 @@ import { MovieCard } from "@/components/movie-card";
 import { getPublicPublishedMovies } from "@/lib/movies-public";
 
 export const dynamic = "force-dynamic";
-export const metadata = { title: "أفلام كرتون", alternates: { canonical: "/movies" } };
+export const metadata = {
+  title: "أفلام كرتون | كارتوني",
+  description: "مكتبة سينمائية متكاملة لأفلام الرسوم المتحركة والكرتون المدبلجة والمترجمة بجودة عالية.",
+  alternates: { canonical: "/movies" },
+  openGraph: {
+    title: "أفلام كرتون | كارتوني",
+    description: "مكتبة سينمائية متكاملة لأفلام الرسوم المتحركة والكرتون المدبلجة والمترجمة بجودة عالية.",
+    type: "website",
+  },
+};
 
 export default async function MoviesListingPage() {
   const { ok, error, movies } = await getPublicPublishedMovies();

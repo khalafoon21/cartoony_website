@@ -17,7 +17,23 @@ export async function generateMetadata({ params }: {
   const { slug } = await params;
   const category = categories.find((item) => item.slug === slug);
   if (!category) return { robots: { index: false, follow: false } };
-  return { alternates: { canonical: `/category/${category.slug}` } };
+  const title = `أفلام ومسلسلات ${category.label} | كارتوني`;
+  const description = `استكشف أفضل أفلام ومسلسلات الرسوم المتحركة في تصنيف ${category.label} (${category.englishLabel}). ${category.caption}.`;
+  return {
+    title,
+    description,
+    alternates: { canonical: `/category/${category.slug}` },
+    openGraph: {
+      title,
+      description,
+      type: "website",
+    },
+    twitter: {
+      card: "summary_large_image",
+      title,
+      description,
+    },
+  };
 }
 
 export default async function CategoryPage({

@@ -24,6 +24,7 @@ function revalidateMovieRoutes(slug?: string) {
   revalidatePath("/movies");
   if (slug) {
     revalidatePath(`/movies/${slug}`);
+    revalidatePath(`/watch/movies/${slug}`);
   }
   revalidatePath("/category/[slug]", "page");
   revalidatePath("/admin");
@@ -62,6 +63,9 @@ export async function saveMovieAction(formData: FormData): Promise<MovieActionRe
     is_featured: formData.get("is_featured") === "on",
     is_most_watched: formData.get("is_most_watched") === "on",
     is_recently_added: formData.get("is_recently_added") === "on",
+    video_url: String(formData.get("video_url") ?? ""),
+    subtitle_url: String(formData.get("subtitle_url") ?? ""),
+    subtitle_lang: String(formData.get("subtitle_lang") ?? "ar"),
     status: String(formData.get("status") ?? "draft"),
     category_ids: categoryIds,
   });

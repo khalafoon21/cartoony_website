@@ -1,11 +1,13 @@
 import { HomePage } from "@/components/home-page";
 import { getPublicHomepageSections } from "@/lib/movies-public";
+import { getHomepageSectionsSettings } from "@/lib/homepage-admin";
 
 export const dynamic = "force-dynamic";
 export const metadata = { alternates: { canonical: "/" } };
 
 export default async function Page() {
-  const { ok, error, sections, heroSlides } = await getPublicHomepageSections();
+  const sectionsConfig = await getHomepageSectionsSettings();
+  const { ok, error, sections, heroSlides } = await getPublicHomepageSections(sectionsConfig);
 
   return (
     <HomePage

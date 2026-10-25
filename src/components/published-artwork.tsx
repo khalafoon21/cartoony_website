@@ -8,10 +8,12 @@ export function PublishedArtwork({
   src,
   className = "",
   eager = false,
+  alt = "",
 }: {
   src?: string | null;
   className?: string;
   eager?: boolean;
+  alt?: string;
 }) {
   const [failedSrc, setFailedSrc] = useState<string | null>(null);
 
@@ -20,9 +22,11 @@ export function PublishedArtwork({
       // eslint-disable-next-line @next/next/no-img-element
       <img
         src={src}
-        alt=""
+        alt={alt}
         className={className}
         loading={eager ? "eager" : "lazy"}
+        fetchPriority={eager ? "high" : "low"}
+        decoding="async"
         onError={() => setFailedSrc(src)}
       />
     );

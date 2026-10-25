@@ -62,6 +62,9 @@ type FormValues = {
   is_most_watched: boolean;
   is_recently_added: boolean;
   category_ids: string[];
+  video_url: string;
+  subtitle_url: string;
+  subtitle_lang: string;
 };
 
 const EMPTY_FORM: FormValues = {
@@ -87,6 +90,9 @@ const EMPTY_FORM: FormValues = {
   is_most_watched: false,
   is_recently_added: true,
   category_ids: [],
+  video_url: "",
+  subtitle_url: "",
+  subtitle_lang: "ar",
 };
 
 function slugifyTitle(value: string): string {
@@ -103,6 +109,12 @@ function mapMovieToForm(movie: DbMovieRow): FormValues {
   const categoryIds = (movie.movie_categories ?? [])
     .map((mc) => mc.category_id)
     .filter(Boolean);
+
+  const meta = (movie.metadata ?? {}) as {
+    video_url?: string;
+    subtitle_url?: string;
+    subtitle_lang?: string;
+  };
 
   return {
     movie_id: movie.id,
@@ -127,6 +139,9 @@ function mapMovieToForm(movie: DbMovieRow): FormValues {
     is_most_watched: Boolean(movie.is_most_watched),
     is_recently_added: Boolean(movie.is_recently_added),
     category_ids: categoryIds,
+    video_url: meta.video_url || "",
+    subtitle_url: meta.subtitle_url || "",
+    subtitle_lang: meta.subtitle_lang || "ar",
   };
 }
 
@@ -1030,6 +1045,59 @@ export function MoviesCrudClient({
               />
               <div id="err-description-ar" className="admin-field-error">
                 <span aria-hidden="true">⚠</span> يرجى كتابة وصف للفيلم (5 أحرف على الأقل).
+              </div>
+            </div>
+
+            {/* Video Source & Subtitles */}
+            <div className="admin-form-field admin-field-full admin-video-config-box">
+              <div className="admin-video-config-header">
+                <strong>مصدر الفيديو والمشاهدة</strong>
+                <span>(يدعم روابط MP4 المباشرة وروابط بث HLS بصيغة m3u8)</span>
+              </div>
+              <div className="admin-video-config-grid">
+                <div className="admin-form-field">
+                  <label htmlFor="field-video-url">رابط الفيديو</label>
+                  <input
+                    id="field-video-url"
+                    name="video_url"
+                    type="url"
+                    dir="ltr"
+                    value={formValues.video_url}
+                    onChange={(e) =>
+                      setFormValues((prev) => ({ ...prev, video_url: e.target.value }))
+                    }
+                    placeholder="https://example.com/stream/movie.m3u8 أو https://.../movie.mp4"
+                  />
+                </div>
+                <div className="admin-form-field">
+                  <label htmlFor="field-subtitle-url">رابط ملف الترجمة (WebVTT .vtt)</label>
+                  <input
+                    id="field-subtitle-url"
+                    name="subtitle_url"
+                    type="url"
+                    dir="ltr"
+                    value={formValues.subtitle_url}
+                    onChange={(e) =>
+                      setFormValues((prev) => ({ ...prev, subtitle_url: e.target.value }))
+                    }
+                    placeholder="https://example.com/subs/ar.vtt"
+                  />
+                </div>
+                <div className="admin-form-field">
+                  <label htmlFor="field-subtitle-lang">رمز لغة الترجمة</label>
+                  <input
+                    id="field-subtitle-lang"
+                    name="subtitle_lang"
+                    type="text"
+                    dir="ltr"
+                    maxLength={10}
+                    value={formValues.subtitle_lang}
+                    onChange={(e) =>
+                      setFormValues((prev) => ({ ...prev, subtitle_lang: e.target.value }))
+                    }
+                    placeholder="ar"
+                  />
+                </div>
               </div>
             </div>
 

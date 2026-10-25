@@ -1,6 +1,8 @@
 "use client";
 
 import Image from "next/image";
+import Link from "next/link";
+import { usePathname } from "next/navigation";
 import { useCallback, useEffect, useRef, useState, type CSSProperties } from "react";
 import { Icon, type IconName } from "./icon";
 
@@ -18,14 +20,21 @@ export const defaultNavItems: NavItem[] = [
     id: "home",
     label: "الرئيسية",
     subtitle: "العرض المميز الآن",
-    href: "#home",
+    href: "/",
     icon: "home",
+  },
+  {
+    id: "search",
+    label: "البحث الذكي",
+    subtitle: "ابحث في كل الأعمال",
+    href: "/search",
+    icon: "search",
   },
   {
     id: "stories",
     label: "استكشف الحكايات",
     subtitle: "مكتبة الأفلام الكاملة",
-    href: "#stories",
+    href: "/movies",
     icon: "film",
   },
   {
@@ -58,17 +67,24 @@ export interface SidebarProps {
 }
 
 export function Sidebar({ activeSection, className = "" }: SidebarProps) {
+  const pathname = usePathname();
   const [activeId, setActiveId] = useState<string>(activeSection || "home");
   const [hoveredIndex, setHoveredIndex] = useState<number | null>(null);
   const [isExpanded, setIsExpanded] = useState(false);
   const sidebarRef = useRef<HTMLElement>(null);
 
-  // Sync active section if passed from parent
+  // Sync active section if passed from parent or pathname
   useEffect(() => {
-    if (activeSection) {
+    if (pathname === "/search") {
+      setActiveId("search");
+    } else if (pathname === "/movies") {
+      setActiveId("stories");
+    } else if (pathname === "/") {
+      setActiveId("home");
+    } else if (activeSection) {
       setActiveId(activeSection);
     }
-  }, [activeSection]);
+  }, [pathname, activeSection]);
 
   // Scroll-spy via IntersectionObserver
   useEffect(() => {
@@ -135,6 +151,10 @@ export function Sidebar({ activeSection, className = "" }: SidebarProps) {
     "--has-hover": hoveredIndex !== null ? 1 : 0,
   } as CSSProperties;
 
+  if (pathname?.startsWith("/admin")) {
+    return null;
+  }
+
   return (
     <>
       {/* Ambient page backdrop dim when sidebar is expanded */}
@@ -198,7 +218,7 @@ export function Sidebar({ activeSection, className = "" }: SidebarProps) {
             const isActive = activeId === item.id;
             const isHovered = hoveredIndex === index;
             return (
-              <a
+              <Link
                 key={item.id}
                 href={item.href}
                 onClick={(e) => handleNavClick(e, item)}
@@ -230,7 +250,7 @@ export function Sidebar({ activeSection, className = "" }: SidebarProps) {
                 <span className="sidebar-tooltip" aria-hidden="true">
                   {item.label}
                 </span>
-              </a>
+              </Link>
             );
           })}
         </nav>

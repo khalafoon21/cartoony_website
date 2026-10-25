@@ -5,7 +5,7 @@ export default function robots(): MetadataRoute.Robots {
   return {
     rules: { userAgent: "*", ...(process.env.VERCEL_ENV === "preview"
       ? { disallow: "/" }
-      : { allow: "/", disallow: ["/admin", "/api/"] }) },
+      : { allow: "/", disallow: ["/admin", "/admin/", "/api/"] }) },
     sitemap: `${SITE_URL}/sitemap.xml`,
   };
 }

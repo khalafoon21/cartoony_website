@@ -20,6 +20,12 @@ export function AdminSidebar({
 
   const activeId = pathname.startsWith("/admin/movies")
     ? "movies"
+    : pathname.startsWith("/admin/series")
+    ? "series"
+    : pathname.startsWith("/admin/homepage")
+    ? "homepage"
+    : pathname.startsWith("/admin/categories")
+    ? "categories"
     : hashId || "dashboard";
 
   return (

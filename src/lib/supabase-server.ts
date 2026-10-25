@@ -17,7 +17,9 @@ export type SupabaseTableName =
   | "episodes"
   | "categories"
   | "movie_categories"
-  | "series_categories";
+  | "series_categories"
+  | "site_settings"
+  | "playback_events";
 
 function getPublicKey(): string {
   return (
@@ -156,23 +158,38 @@ export async function executePublicRead<T>(
     };
   }
 
-  try {
-    const normalizedQuery = queryString.startsWith("?") ? queryString : `?${queryString}`;
-    const response = await fetch(`${baseUrl}/${table}${normalizedQuery}`, {
-      method: "GET",
-      headers,
-      cache: "no-store",
-    });
+  const normalizedQuery = queryString.startsWith("?") ? queryString : `?${queryString}`;
+  const url = `${baseUrl}/${table}${normalizedQuery}`;
 
-    if (!response.ok) {
-      return { ok: false, error: `تعذر تحميل البيانات (${response.status}).` };
+  for (let attempt = 0; attempt < 2; attempt++) {
+    try {
+      const response = await fetch(url, {
+        method: "GET",
+        headers,
+        cache: "no-store",
+        signal: AbortSignal.timeout(10000),
+      });
+
+      if (!response.ok) {
+        if (response.status >= 500 && attempt === 0) {
+          await new Promise((r) => setTimeout(r, 250));
+          continue;
+        }
+        return { ok: false, error: `تعذر تحميل البيانات (${response.status}).` };
+      }
+
+      const data = (await response.json()) as T;
+      return { ok: true, data };
+    } catch {
+      if (attempt === 0) {
+        await new Promise((r) => setTimeout(r, 250));
+        continue;
+      }
+      return { ok: false, error: "تعذر الاتصال بقاعدة البيانات." };
     }
-
-    const data = (await response.json()) as T;
-    return { ok: true, data };
-  } catch {
-    return { ok: false, error: "تعذر الاتصال بقاعدة البيانات." };
   }
+
+  return { ok: false, error: "تعذر الاتصال بقاعدة البيانات." };
 }
 
 /**
@@ -197,23 +214,38 @@ export async function executeAdminRead<T>(
     };
   }
 
-  try {
-    const normalizedQuery = queryString.startsWith("?") ? queryString : `?${queryString}`;
-    const response = await fetch(`${baseUrl}/${table}${normalizedQuery}`, {
-      method: "GET",
-      headers,
-      cache: "no-store",
-    });
+  const normalizedQuery = queryString.startsWith("?") ? queryString : `?${queryString}`;
+  const url = `${baseUrl}/${table}${normalizedQuery}`;
 
-    if (!response.ok) {
-      return { ok: false, error: `خطأ في قراءة البيانات من قاعدة البيانات (${response.status}).` };
+  for (let attempt = 0; attempt < 2; attempt++) {
+    try {
+      const response = await fetch(url, {
+        method: "GET",
+        headers,
+        cache: "no-store",
+        signal: AbortSignal.timeout(10000),
+      });
+
+      if (!response.ok) {
+        if (response.status >= 500 && attempt === 0) {
+          await new Promise((r) => setTimeout(r, 250));
+          continue;
+        }
+        return { ok: false, error: `خطأ في قراءة البيانات من قاعدة البيانات (${response.status}).` };
+      }
+
+      const data = (await response.json()) as T;
+      return { ok: true, data };
+    } catch {
+      if (attempt === 0) {
+        await new Promise((r) => setTimeout(r, 250));
+        continue;
+      }
+      return { ok: false, error: "تعذر الاتصال بقاعدة البيانات." };
     }
-
-    const data = (await response.json()) as T;
-    return { ok: true, data };
-  } catch {
-    return { ok: false, error: "تعذر الاتصال بقاعدة البيانات." };
   }
+
+  return { ok: false, error: "تعذر الاتصال بقاعدة البيانات." };
 }
 
 /**
@@ -270,6 +302,57 @@ export async function executeAdminWrite<T>(
         ok: false,
         code: errPayload?.code,
         error: `خطأ من قاعدة البيانات (${response.status}).`,
+      };
+    }
+
+    if (response.status === 204) {
+      return { ok: true, data: null };
+    }
+
+    const data = (await response.json().catch(() => null)) as T | null;
+    return { ok: true, data };
+  } catch {
+    return { ok: false, error: "تعذر الاتصال بقاعدة البيانات." };
+  }
+}
+
+/**
+ * Server-only helper to record internal events (like playback starts) using the service role key.
+ * Used exclusively by server endpoints that have completed rate-limiting and validation.
+ */
+export async function executeInternalServiceWrite<T>(
+  table: SupabaseTableName,
+  method: "POST" | "PATCH" | "DELETE",
+  body?: Record<string, unknown> | Array<Record<string, unknown>>,
+  queryString = "",
+  prefer = "return=representation"
+): Promise<{ ok: true; data: T | null } | { ok: false; error: string; code?: string }> {
+  const baseUrl = getBaseRestUrl();
+  const headers = getApiHeaders(true, false);
+  if (!baseUrl || !headers) {
+    return {
+      ok: false,
+      error: "قاعدة بيانات Supabase غير مهيأة بعد.",
+    };
+  }
+
+  try {
+    const normalizedQuery =
+      queryString && !queryString.startsWith("?") ? `?${queryString}` : queryString;
+    const response = await fetch(`${baseUrl}/${table}${normalizedQuery}`, {
+      method,
+      headers: {
+        ...headers,
+        Prefer: prefer,
+      },
+      body: body !== undefined ? JSON.stringify(body) : undefined,
+      cache: "no-store",
+    });
+
+    if (!response.ok) {
+      return {
+        ok: false,
+        error: `خطأ في تسجيل البيانات (${response.status}).`,
       };
     }
 

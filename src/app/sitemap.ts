@@ -10,7 +10,7 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
   const result = await getPublicPublishedCatalog();
   if (!result.ok) throw new Error("Sitemap temporarily unavailable");
   const paths = new Set([
-    "/", "/movies",
+    "/", "/movies", "/series", "/search",
     ...categories.map((category) => `/category/${category.slug}`),
     ...result.movies.map(getContentHref),
   ]);
