@@ -6409,48 +6409,63 @@ select:focus-visible {
    Transforms Desktop Right Rail into Sleek Bottom Navigation Bar (<= 768px)
    ========================================================================== */
 
-/* Hide Mobile App Header on Desktop */
-.mobile-app-header {
+/* ==========================================================================
+   Phase 19 — Premium Mobile Homepage & Navigation (<= 767px)
+   DNA: Deep Space Navy (#121B32), Card Glass (#1C2942), Warm Orange (#F5A623),
+        Coral (#E85842), Cream Text (#F5F1EA), Soft Blue (#62B9D6)
+   ========================================================================== */
+
+/* Hide mobile-only elements on desktop (> 767px) */
+.mobile-app-header,
+.mobile-bottom-nav,
+.mobile-more-backdrop,
+.mobile-more-drawer {
   display: none;
 }
 
-@media (max-width: 768px) {
+@media (max-width: 767px) {
   /* 1. Page Shell Reset: release 84px right margin on mobile and reserve bottom padding */
   .page-shell:not(.is-admin) {
     margin-right: 0 !important;
     padding-bottom: calc(72px + env(safe-area-inset-bottom, 14px)) !important;
   }
 
-  /* 2. Mobile App Header: Sticky glass topbar with mascot & instant search */
+  /* 2. Desktop Sidebar is completely hidden on mobile <= 767px */
+  .sidebar,
+  .sidebar-scrim {
+    display: none !important;
+  }
+
+  /* 3. Mobile App Header: Compact sticky glass header with approved logo & search */
   .mobile-app-header {
-    display: block;
-    position: sticky;
-    top: 0;
-    left: 0;
-    right: 0;
-    z-index: 45;
-    background: rgba(16, 25, 46, 0.92);
-    backdrop-filter: blur(24px) saturate(180%);
+    display: block !important;
+    position: sticky !important;
+    top: 0 !important;
+    left: 0 !important;
+    right: 0 !important;
+    z-index: 45 !important;
+    background: rgba(16, 25, 46, 0.94) !important;
+    backdrop-filter: blur(24px) saturate(180%) !important;
     -webkit-backdrop-filter: blur(24px) saturate(180%);
-    border-bottom: 1px solid rgba(255, 255, 255, 0.08);
-    box-shadow: 0 4px 24px rgba(4, 9, 22, 0.55);
+    border-bottom: 1px solid rgba(255, 255, 255, 0.08) !important;
+    box-shadow: 0 4px 24px rgba(4, 9, 22, 0.55) !important;
   }
 
   .mobile-header-inner {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    height: 56px;
-    padding: 0 16px;
-    max-width: 100vw;
+    display: flex !important;
+    align-items: center !important;
+    justify-content: space-between !important;
+    height: 56px !important;
+    padding: 0 16px !important;
+    max-width: 100vw !important;
   }
 
   .mobile-header-brand {
-    display: flex;
-    align-items: center;
-    gap: 10px;
-    text-decoration: none;
-    position: relative;
+    display: flex !important;
+    align-items: center !important;
+    gap: 10px !important;
+    text-decoration: none !important;
+    position: relative !important;
   }
 
   .mobile-header-logo-glow {
@@ -6464,205 +6479,318 @@ select:focus-visible {
   }
 
   .mobile-header-logo-img {
-    width: 36px;
-    height: 36px;
-    object-fit: contain;
-    position: relative;
-    z-index: 1;
+    width: 36px !important;
+    height: 36px !important;
+    object-fit: contain !important;
+    position: relative !important;
+    z-index: 1 !important;
     filter: drop-shadow(0 2px 6px rgba(0, 0, 0, 0.45));
   }
 
   .mobile-header-text {
-    display: flex;
-    flex-direction: column;
-    justify-content: center;
-    line-height: 1.15;
+    display: flex !important;
+    flex-direction: column !important;
+    justify-content: center !important;
+    line-height: 1.15 !important;
   }
 
   .mobile-header-title {
-    font-size: 19px;
-    font-weight: 900;
-    color: var(--cream, #F5F1EA);
-    letter-spacing: -0.5px;
+    font-size: 19px !important;
+    font-weight: 900 !important;
+    color: var(--cream, #F5F1EA) !important;
+    letter-spacing: -0.5px !important;
   }
 
   .mobile-header-dot {
-    color: var(--orange, #F5A623);
-    margin-right: 1px;
-    font-weight: 900;
+    color: var(--orange, #F5A623) !important;
+    margin-right: 1px !important;
+    font-weight: 900 !important;
   }
 
   .mobile-header-tagline {
-    font-size: 10px;
-    color: #8C9BB4;
-    font-weight: 500;
-    letter-spacing: 0.2px;
+    font-size: 10px !important;
+    color: #8C9BB4 !important;
+    font-weight: 500 !important;
+    letter-spacing: 0.2px !important;
   }
 
   .mobile-header-actions {
-    display: flex;
-    align-items: center;
-    gap: 8px;
+    display: flex !important;
+    align-items: center !important;
+    gap: 8px !important;
   }
 
   .mobile-header-action-btn {
-    width: 38px;
-    height: 38px;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    border-radius: 12px;
-    background: rgba(255, 255, 255, 0.05);
-    border: 1px solid rgba(255, 255, 255, 0.08);
-    color: #BAC7DE;
-    text-decoration: none;
-    transition: all 0.2s ease;
-    -webkit-tap-highlight-color: transparent;
+    width: 38px !important;
+    height: 38px !important;
+    display: flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+    border-radius: 12px !important;
+    background: rgba(255, 255, 255, 0.05) !important;
+    border: 1px solid rgba(255, 255, 255, 0.08) !important;
+    color: #BAC7DE !important;
+    text-decoration: none !important;
+    transition: all 0.2s ease !important;
+    -webkit-tap-highlight-color: transparent !important;
   }
 
-  .mobile-header-action-btn:hover,
   .mobile-header-action-btn:active {
-    background: rgba(245, 166, 35, 0.16);
-    border-color: rgba(245, 166, 35, 0.35);
-    color: var(--orange, #F5A623);
-    transform: scale(0.95);
+    background: rgba(245, 166, 35, 0.16) !important;
+    border-color: rgba(245, 166, 35, 0.35) !important;
+    color: var(--orange, #F5A623) !important;
+    transform: scale(0.95) !important;
   }
 
   .mobile-header-action-btn.is-explore {
-    background: rgba(245, 166, 35, 0.1);
-    border-color: rgba(245, 166, 35, 0.22);
-    color: var(--orange, #F5A623);
+    background: rgba(245, 166, 35, 0.1) !important;
+    border-color: rgba(245, 166, 35, 0.22) !important;
+    color: var(--orange, #F5A623) !important;
   }
 
-  /* 3. Bottom Navigation Bar: Docked .sidebar */
-  .sidebar {
-    top: auto !important;
+  /* 4. Fixed Bottom Navigation Bar (5 tabs: Home, Movies, Search, Series, More) */
+  .mobile-bottom-nav {
+    display: block !important;
+    position: fixed !important;
     bottom: 0 !important;
     left: 0 !important;
     right: 0 !important;
     width: 100vw !important;
     max-width: 100vw !important;
-    height: auto !important;
-    min-height: calc(58px + env(safe-area-inset-bottom, 8px)) !important;
-    padding: 6px 4px max(8px, env(safe-area-inset-bottom, 8px)) !important;
-    background: rgba(16, 25, 46, 0.95) !important;
+    z-index: 95 !important;
+    background: rgba(16, 25, 46, 0.96) !important;
     backdrop-filter: blur(28px) saturate(190%) !important;
     -webkit-backdrop-filter: blur(28px) saturate(190%) !important;
-    border-left: none !important;
     border-top: 1px solid rgba(255, 255, 255, 0.09) !important;
-    box-shadow: 0 -8px 32px rgba(4, 9, 22, 0.7), inset 0 1px 0 rgba(255, 255, 255, 0.08) !important;
-    flex-direction: row !important;
-    align-items: center !important;
-    justify-content: space-around !important;
-    z-index: 100 !important;
-    overflow: visible !important;
+    box-shadow: 0 -8px 32px rgba(4, 9, 22, 0.75), inset 0 1px 0 rgba(255, 255, 255, 0.08) !important;
+    padding: 4px 6px max(8px, env(safe-area-inset-bottom, 8px)) !important;
   }
 
-  /* Suppress desktop-only elements on mobile */
-  .sidebar-header,
-  .sidebar-footer,
-  .sidebar-spotlight,
-  .sidebar-hover-glider,
-  .sidebar-active-glider,
-  .sidebar-scrim,
-  .sidebar-tooltip,
-  .sidebar-item-subtitle,
-  .sidebar-item-badge {
-    display: none !important;
-  }
-
-  .sidebar-nav {
+  .mobile-bottom-nav-inner {
     display: flex !important;
-    flex-direction: row !important;
     align-items: center !important;
     justify-content: space-around !important;
     width: 100% !important;
-    padding: 0 !important;
-    margin: 0 !important;
     gap: 2px !important;
   }
 
-  .sidebar-nav-item {
+  .mobile-tab-btn {
     flex: 1 1 0 !important;
     display: flex !important;
     flex-direction: column !important;
     align-items: center !important;
     justify-content: center !important;
     min-height: 48px !important;
-    padding: 3px 2px !important;
+    padding: 4px 2px !important;
     border-radius: 12px !important;
-    gap: 3px !important;
+    gap: 2px !important;
     position: relative !important;
     text-decoration: none !important;
     background: transparent !important;
-    transition: transform 0.15s ease !important;
+    color: #8C9BB4 !important;
+    transition: transform 0.15s ease, color 0.2s ease !important;
     -webkit-tap-highlight-color: transparent !important;
   }
 
-  .sidebar-nav-item:active {
-    transform: scale(0.93) !important;
+  .mobile-tab-btn:active {
+    transform: scale(0.92) !important;
   }
 
-  /* Active indicator capsule at top edge of bottom bar */
-  .sidebar-nav-item.is-active::before {
-    content: "";
-    position: absolute;
-    top: -6px;
-    width: 18px;
-    height: 3px;
-    border-radius: 3px;
-    background: var(--orange, #F5A623);
-    box-shadow: 0 0 10px rgba(245, 166, 35, 0.85), 0 0 4px rgba(245, 166, 35, 0.6);
+  .mobile-tab-btn.is-active {
+    color: var(--orange, #F5A623) !important;
   }
 
-  .sidebar-icon-box {
+  .mobile-tab-btn.is-active .mobile-tab-indicator {
+    position: absolute !important;
+    top: -4px !important;
+    width: 16px !important;
+    height: 3px !important;
+    border-radius: 3px !important;
+    background: var(--orange, #F5A623) !important;
+    box-shadow: 0 0 10px rgba(245, 166, 35, 0.9), 0 0 4px rgba(245, 166, 35, 0.6) !important;
+  }
+
+  .mobile-tab-icon-box {
     width: 28px !important;
     height: 28px !important;
     display: flex !important;
     align-items: center !important;
     justify-content: center !important;
     border-radius: 8px !important;
-    color: #8C9BB4 !important;
     transition: all 0.2s ease !important;
   }
 
-  .sidebar-nav-item.is-active .sidebar-icon-box {
+  .mobile-tab-btn.is-active .mobile-tab-icon-box {
+    background: rgba(245, 166, 35, 0.16) !important;
     color: var(--orange, #F5A623) !important;
-    background: rgba(245, 166, 35, 0.15) !important;
     box-shadow: 0 0 12px rgba(245, 166, 35, 0.25) !important;
   }
 
-  .sidebar-label-box {
-    display: flex !important;
-    opacity: 1 !important;
-    transform: none !important;
-    width: auto !important;
-    margin: 0 !important;
-    padding: 0 !important;
-  }
-
-  .sidebar-label-text-group {
-    display: flex !important;
-    flex-direction: column !important;
-    align-items: center !important;
-  }
-
-  .sidebar-item-label {
+  .mobile-tab-label {
     font-size: 10px !important;
     font-weight: 700 !important;
-    color: #8C9BB4 !important;
     white-space: nowrap !important;
     line-height: 1.1 !important;
     letter-spacing: -0.2px !important;
-    transition: color 0.2s ease !important;
   }
 
-  .sidebar-nav-item.is-active .sidebar-item-label {
-    color: var(--orange, #F5A623) !important;
+  .mobile-tab-btn.is-active .mobile-tab-label {
     font-weight: 800 !important;
   }
 
-  /* 4. Mobile Homepage Hero adjustments */
+  /* More Options Bottom Drawer */
+  .mobile-more-backdrop {
+    display: block !important;
+    position: fixed !important;
+    inset: 0 !important;
+    z-index: 96 !important;
+    background: rgba(4, 9, 22, 0.68) !important;
+    backdrop-filter: blur(4px) !important;
+    -webkit-backdrop-filter: blur(4px) !important;
+    opacity: 0 !important;
+    pointer-events: none !important;
+    transition: opacity 0.25s ease !important;
+  }
+
+  .mobile-more-backdrop.is-visible {
+    opacity: 1 !important;
+    pointer-events: auto !important;
+  }
+
+  .mobile-more-drawer {
+    display: flex !important;
+    position: fixed !important;
+    bottom: calc(58px + env(safe-area-inset-bottom, 8px)) !important;
+    left: 12px !important;
+    right: 12px !important;
+    z-index: 97 !important;
+    background: linear-gradient(185deg, rgba(28, 41, 66, 0.98) 0%, rgba(18, 27, 50, 0.99) 100%) !important;
+    backdrop-filter: blur(28px) !important;
+    -webkit-backdrop-filter: blur(28px) !important;
+    border: 1px solid rgba(255, 255, 255, 0.12) !important;
+    border-radius: 20px !important;
+    box-shadow: 0 -8px 36px rgba(0, 0, 0, 0.6), 0 0 0 1px rgba(245, 166, 35, 0.15) !important;
+    padding: 16px !important;
+    flex-direction: column !important;
+    gap: 12px !important;
+    transform: translateY(20px) scale(0.97) !important;
+    opacity: 0 !important;
+    pointer-events: none !important;
+    transition: all 0.25s cubic-bezier(0.16, 1, 0.3, 1) !important;
+  }
+
+  .mobile-more-drawer.is-open {
+    transform: translateY(0) scale(1) !important;
+    opacity: 1 !important;
+    pointer-events: auto !important;
+  }
+
+  .mobile-more-handle {
+    width: 36px !important;
+    height: 4px !important;
+    background: rgba(255, 255, 255, 0.2) !important;
+    border-radius: 4px !important;
+    margin: 0 auto 4px !important;
+  }
+
+  .mobile-more-header {
+    display: flex !important;
+    align-items: center !important;
+    justify-content: space-between !important;
+    padding-bottom: 8px !important;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.08) !important;
+  }
+
+  .mobile-more-title {
+    font-size: 14px !important;
+    font-weight: 800 !important;
+    color: var(--cream, #F5F1EA) !important;
+  }
+
+  .mobile-more-close-btn {
+    background: rgba(255, 255, 255, 0.08) !important;
+    border: none !important;
+    color: #BAC7DE !important;
+    width: 28px !important;
+    height: 28px !important;
+    border-radius: 50% !important;
+    display: flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+    cursor: pointer !important;
+    font-size: 12px !important;
+  }
+
+  .mobile-more-grid {
+    display: flex !important;
+    flex-direction: column !important;
+    gap: 8px !important;
+  }
+
+  .mobile-more-item {
+    display: flex !important;
+    align-items: center !important;
+    gap: 12px !important;
+    padding: 10px 12px !important;
+    border-radius: 12px !important;
+    background: rgba(255, 255, 255, 0.04) !important;
+    border: 1px solid rgba(255, 255, 255, 0.06) !important;
+    text-decoration: none !important;
+    color: inherit !important;
+    transition: all 0.2s ease !important;
+    -webkit-tap-highlight-color: transparent !important;
+  }
+
+  .mobile-more-item:active {
+    background: rgba(245, 166, 35, 0.14) !important;
+    border-color: rgba(245, 166, 35, 0.35) !important;
+    transform: scale(0.98) !important;
+  }
+
+  .mobile-more-icon-box {
+    width: 36px !important;
+    height: 36px !important;
+    border-radius: 10px !important;
+    background: rgba(245, 166, 35, 0.12) !important;
+    color: var(--orange, #F5A623) !important;
+    display: flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+    flex-shrink: 0 !important;
+  }
+
+  .mobile-more-text {
+    display: flex !important;
+    flex-direction: column !important;
+    gap: 2px !important;
+    flex: 1 !important;
+  }
+
+  .mobile-more-item-label {
+    display: flex !important;
+    align-items: center !important;
+    gap: 8px !important;
+    font-size: 13px !important;
+    font-weight: 700 !important;
+    color: var(--cream, #F5F1EA) !important;
+  }
+
+  .mobile-more-badge {
+    font-size: 9px !important;
+    font-weight: 800 !important;
+    padding: 1px 6px !important;
+    border-radius: 999px !important;
+    background: rgba(232, 88, 66, 0.2) !important;
+    color: #FF8777 !important;
+    border: 1px solid rgba(232, 88, 66, 0.4) !important;
+  }
+
+  .mobile-more-item-subtitle {
+    font-size: 11px !important;
+    color: #8C9BB4 !important;
+  }
+
+  /* 5. Mobile Hero Slider (Wide artwork, readable title, Watch Now + Details actions) */
   .hero {
     min-height: clamp(520px, 78vh, 620px) !important;
   }
@@ -6697,12 +6825,123 @@ select:focus-visible {
     margin-block: 10px 16px !important;
   }
 
+  .hero-actions {
+    display: flex !important;
+    flex-direction: row !important;
+    flex-wrap: wrap !important;
+    align-items: center !important;
+    gap: 10px !important;
+    width: 100% !important;
+  }
+
+  .hero-actions .primary-button.is-watch-now {
+    flex: 1 1 140px !important;
+    min-height: 48px !important;
+    justify-content: center !important;
+    font-size: 13px !important;
+    font-weight: 800 !important;
+    border-radius: 12px !important;
+    background: var(--orange, #F5A623) !important;
+    color: #121A2D !important;
+    box-shadow: 0 4px 18px rgba(245, 166, 35, 0.35) !important;
+  }
+
+  .hero-actions .secondary-button.is-details-btn {
+    flex: 1 1 110px !important;
+    min-height: 48px !important;
+    display: inline-flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+    gap: 7px !important;
+    padding: 0 16px !important;
+    font-size: 13px !important;
+    font-weight: 700 !important;
+    border-radius: 12px !important;
+    background: rgba(255, 255, 255, 0.08) !important;
+    border: 1px solid rgba(255, 255, 255, 0.14) !important;
+    color: var(--cream, #F5F1EA) !important;
+    text-decoration: none !important;
+    backdrop-filter: blur(12px) !important;
+    transition: all 0.2s ease !important;
+  }
+
+  .hero-actions .secondary-button.is-details-btn:active {
+    background: rgba(255, 255, 255, 0.16) !important;
+    transform: scale(0.96) !important;
+  }
+
+  .hero-actions .save-button {
+    width: 48px !important;
+    height: 48px !important;
+    border-radius: 12px !important;
+    flex-shrink: 0 !important;
+  }
+
   .hero-pagination {
     left: 16px !important;
     bottom: 14px !important;
   }
 
-  /* 5. Mobile Horizontal Scroll Rails (Franchises, Categories, Carousels) */
+  /* 6. Horizontal swipeable circular categories */
+  .category-grid {
+    display: flex !important;
+    overflow-x: auto !important;
+    scrollbar-width: none !important;
+    -webkit-overflow-scrolling: touch !important;
+    gap: 12px !important;
+    padding: 6px 16px 16px !important;
+  }
+
+  .category-item {
+    flex-shrink: 0 !important;
+  }
+
+  .category {
+    display: flex !important;
+    flex-direction: column !important;
+    align-items: center !important;
+    text-align: center !important;
+    gap: 6px !important;
+    padding: 6px !important;
+    background: transparent !important;
+    border: none !important;
+  }
+
+  .category-image {
+    width: 66px !important;
+    height: 66px !important;
+    border-radius: 50% !important;
+    overflow: hidden !important;
+    box-shadow: 0 4px 14px rgba(0, 0, 0, 0.35) !important;
+    transition: transform 0.2s ease !important;
+  }
+
+  .category:active .category-image {
+    transform: scale(0.93) !important;
+  }
+
+  .category.selected .category-image {
+    outline: 2px solid var(--orange, #F5A623) !important;
+    outline-offset: 3px !important;
+    box-shadow: 0 0 16px rgba(245, 166, 35, 0.4) !important;
+  }
+
+  .category-name {
+    font-size: 11px !important;
+    font-weight: 700 !important;
+    color: var(--cream, #F5F1EA) !important;
+    white-space: nowrap !important;
+  }
+
+  .category.selected .category-name {
+    color: var(--orange, #F5A623) !important;
+  }
+
+  .category-caption {
+    display: none !important;
+  }
+
+  /* 7. Content Sections: Horizontal swipeable poster carousels */
   .franchises {
     padding: 12px 16px 20px !important;
   }
@@ -6724,24 +6963,25 @@ select:focus-visible {
     margin-inline: 16px !important;
   }
 
-  .category-grid {
-    scrollbar-width: none !important;
-    -webkit-overflow-scrolling: touch !important;
-    padding-bottom: 12px !important;
-  }
-
   .movie-carousel-track {
+    grid-auto-columns: clamp(140px, 42vw, 172px) !important;
+    gap: 12px !important;
+    padding-inline: 16px !important;
     scroll-snap-type: x mandatory !important;
     -webkit-overflow-scrolling: touch !important;
-    padding-bottom: 12px !important;
     scrollbar-width: none !important;
+    padding-bottom: 12px !important;
   }
 
   .movie-carousel-track > * {
     scroll-snap-align: start !important;
   }
 
-  /* 6. Mobile Catalog & Listing Pages (/movies, /series, /category) */
+  .movie-row-controls .carousel-arrow-btn {
+    display: none !important;
+  }
+
+  /* 8. Mobile Catalog & Listing Pages (/movies, /series, /category) */
   .movie-grid {
     grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
     gap: 16px 12px !important;
@@ -6766,30 +7006,7 @@ select:focus-visible {
     font-weight: 700 !important;
   }
 
-  /* 7. Mobile Details Pages (/movies/[slug], /series/[slug]) */
-  .hero-actions {
-    display: flex !important;
-    flex-direction: column !important;
-    width: 100% !important;
-    gap: 10px !important;
-  }
-
-  .hero-actions .primary-button {
-    width: 100% !important;
-    justify-content: center !important;
-    min-height: 48px !important;
-    border-radius: 12px !important;
-    font-weight: 800 !important;
-    font-size: 14px !important;
-  }
-
-  .hero-actions .text-button {
-    width: 100% !important;
-    justify-content: center !important;
-    min-height: 40px !important;
-    font-size: 12px !important;
-  }
-
+  /* 9. Mobile Details Pages (/movies/[slug], /series/[slug]) */
   .public-series-seasons {
     padding-top: 18px !important;
     padding-bottom: 36px !important;
@@ -6840,7 +7057,7 @@ select:focus-visible {
     font-size: 13px !important;
   }
 
-  /* 8. Mobile Watch & Video Player Pages (/watch/*) */
+  /* 10. Mobile Watch & Video Player Pages (/watch/*) */
   .watch-page-container {
     padding: 16px 12px 60px !important;
     gap: 16px !important;
@@ -6925,7 +7142,7 @@ select:focus-visible {
     height: 60px !important;
   }
 
-  /* 9. Mobile Smart Search Page (/search) */
+  /* 11. Mobile Smart Search Page (/search) */
   .search-page-container {
     padding: 20px 14px 60px !important;
     gap: 16px !important;
@@ -6968,7 +7185,7 @@ select:focus-visible {
     justify-content: center !important;
   }
 
-  /* 10. Mobile Admin Workspace (/admin/*) */
+  /* 12. Mobile Admin Workspace (/admin/*) */
   .admin-workspace {
     grid-template-columns: 1fr !important;
   }
@@ -7039,6 +7256,7 @@ select:focus-visible {
     gap: 10px !important;
   }
 }
+
 
 
 

@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useState, type CSSProperties, type KeyboardEvent } from "react";
+import { useCallback, useEffect, useRef, useState, type CSSProperties, type KeyboardEvent } from "react";
 import Link from "next/link";
 import { getContentHref } from "@/lib/content-links";
 import type { Movie } from "@/lib/movies";
@@ -75,6 +75,31 @@ export function HeroSlider({
     [handleNext, handlePrev]
   );
 
+  const touchStartX = useRef<number | null>(null);
+  const touchStartY = useRef<number | null>(null);
+
+  const handleTouchStart = (e: React.TouchEvent) => {
+    touchStartX.current = e.touches[0].clientX;
+    touchStartY.current = e.touches[0].clientY;
+    setIsPaused(true);
+  };
+
+  const handleTouchEnd = (e: React.TouchEvent) => {
+    setIsPaused(false);
+    if (touchStartX.current === null || touchStartY.current === null) return;
+    const diffX = e.changedTouches[0].clientX - touchStartX.current;
+    const diffY = e.changedTouches[0].clientY - touchStartY.current;
+    if (Math.abs(diffX) > Math.abs(diffY) && Math.abs(diffX) > 40) {
+      if (diffX > 0) {
+        handlePrev();
+      } else {
+        handleNext();
+      }
+    }
+    touchStartX.current = null;
+    touchStartY.current = null;
+  };
+
   if (!movie) {
     return (
       <section className="hero hero-empty" id="home" aria-labelledby="hero-title">
@@ -93,6 +118,12 @@ export function HeroSlider({
     );
   }
 
+  const watchHref =
+    movie?.format === "series"
+      ? `/watch/series/${movie.slug}`
+      : `/watch/movies/${movie.slug}`;
+  const detailsHref = getContentHref(movie);
+
   return (
     <section
       className="hero"
@@ -109,6 +140,8 @@ export function HeroSlider({
         }
       }}
       onKeyDown={handleKeyDown}
+      onTouchStart={handleTouchStart}
+      onTouchEnd={handleTouchEnd}
     >
       <div className="hero-art-stack" aria-hidden="true">
         {slides.map((slide, index) => {
@@ -163,11 +196,24 @@ export function HeroSlider({
         )}
 
         <div className="hero-actions hero-stagger" style={{ "--step": 5 } as CSSProperties}>
-          <Link className="primary-button" href={getContentHref(movie)}>
+          <Link
+            className="primary-button is-watch-now"
+            href={watchHref}
+            aria-label={`مشاهدة الآن: ${movie.title}`}
+          >
             <span className="play-icon-wrap">
               <Icon name="play" size={20} />
             </span>
-            <span>اكتشف الحكاية</span>
+            <span>مشاهدة الآن</span>
+          </Link>
+
+          <Link
+            className="secondary-button is-details-btn"
+            href={detailsHref}
+            aria-label={`تفاصيل: ${movie.title}`}
+          >
+            <Icon name="sparkles" size={17} />
+            <span>التفاصيل</span>
           </Link>
 
           <button
