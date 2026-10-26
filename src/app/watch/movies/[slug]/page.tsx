@@ -97,6 +97,8 @@ export default async function MovieWatchPage({
               accentColor={movie.accent}
               contentId={movie.id}
               contentType="movie"
+              videoType={movie.videoType}
+              servers={movie.servers}
             />
           ) : (
             <div className="watch-unavailable-card">

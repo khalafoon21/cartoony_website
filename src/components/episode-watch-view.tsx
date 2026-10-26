@@ -66,6 +66,8 @@ export function EpisodeWatchView({
             accentColor={series.accent}
             contentId={currentEpisode.id}
             contentType="episode"
+            videoType={currentEpisode.videoType}
+            servers={currentEpisode.servers}
           />
         ) : (
           <div className="watch-unavailable-card">

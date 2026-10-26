@@ -10,7 +10,9 @@ import {
   toggleMoviePublishStatusAction,
 } from "./actions";
 import { AdminDataOriginBadge } from "@/components/admin-dashboard-widgets";
+import { AdminVideoSourceManager } from "@/components/admin-video-source-manager";
 import { Icon } from "@/components/icon";
+import type { VideoServer } from "@/lib/video-helpers";
 import type {
   AudioBadgeType,
   DbCategoryRow,
@@ -63,6 +65,8 @@ type FormValues = {
   is_recently_added: boolean;
   category_ids: string[];
   video_url: string;
+  video_type: "direct" | "iframe";
+  servers: VideoServer[];
   subtitle_url: string;
   subtitle_lang: string;
 };
@@ -91,6 +95,8 @@ const EMPTY_FORM: FormValues = {
   is_recently_added: true,
   category_ids: [],
   video_url: "",
+  video_type: "iframe",
+  servers: [],
   subtitle_url: "",
   subtitle_lang: "ar",
 };
@@ -112,9 +118,23 @@ function mapMovieToForm(movie: DbMovieRow): FormValues {
 
   const meta = (movie.metadata ?? {}) as {
     video_url?: string;
+    video_type?: "direct" | "iframe";
+    servers?: VideoServer[];
     subtitle_url?: string;
     subtitle_lang?: string;
   };
+
+  const rawUrl = meta.video_url || "";
+  const initialType: "direct" | "iframe" =
+    meta.video_type === "direct" || meta.video_type === "iframe"
+      ? meta.video_type
+      : "iframe";
+  const initialServers: VideoServer[] =
+    Array.isArray(meta.servers) && meta.servers.length > 0
+      ? meta.servers
+      : rawUrl
+      ? [{ id: "srv-1", name: "السيرفر الأساسي", url: rawUrl, type: initialType }]
+      : [];
 
   return {
     movie_id: movie.id,
@@ -139,7 +159,9 @@ function mapMovieToForm(movie: DbMovieRow): FormValues {
     is_most_watched: Boolean(movie.is_most_watched),
     is_recently_added: Boolean(movie.is_recently_added),
     category_ids: categoryIds,
-    video_url: meta.video_url || "",
+    video_url: rawUrl,
+    video_type: initialType,
+    servers: initialServers,
     subtitle_url: meta.subtitle_url || "",
     subtitle_lang: meta.subtitle_lang || "ar",
   };
@@ -1048,57 +1070,25 @@ export function MoviesCrudClient({
               </div>
             </div>
 
-            {/* Video Source & Subtitles */}
-            <div className="admin-form-field admin-field-full admin-video-config-box">
-              <div className="admin-video-config-header">
-                <strong>مصدر الفيديو والمشاهدة</strong>
-                <span>(يدعم روابط MP4 المباشرة وروابط بث HLS بصيغة m3u8)</span>
-              </div>
-              <div className="admin-video-config-grid">
-                <div className="admin-form-field">
-                  <label htmlFor="field-video-url">رابط الفيديو</label>
-                  <input
-                    id="field-video-url"
-                    name="video_url"
-                    type="url"
-                    dir="ltr"
-                    value={formValues.video_url}
-                    onChange={(e) =>
-                      setFormValues((prev) => ({ ...prev, video_url: e.target.value }))
-                    }
-                    placeholder="https://example.com/stream/movie.m3u8 أو https://.../movie.mp4"
-                  />
-                </div>
-                <div className="admin-form-field">
-                  <label htmlFor="field-subtitle-url">رابط ملف الترجمة (WebVTT .vtt)</label>
-                  <input
-                    id="field-subtitle-url"
-                    name="subtitle_url"
-                    type="url"
-                    dir="ltr"
-                    value={formValues.subtitle_url}
-                    onChange={(e) =>
-                      setFormValues((prev) => ({ ...prev, subtitle_url: e.target.value }))
-                    }
-                    placeholder="https://example.com/subs/ar.vtt"
-                  />
-                </div>
-                <div className="admin-form-field">
-                  <label htmlFor="field-subtitle-lang">رمز لغة الترجمة</label>
-                  <input
-                    id="field-subtitle-lang"
-                    name="subtitle_lang"
-                    type="text"
-                    dir="ltr"
-                    maxLength={10}
-                    value={formValues.subtitle_lang}
-                    onChange={(e) =>
-                      setFormValues((prev) => ({ ...prev, subtitle_lang: e.target.value }))
-                    }
-                    placeholder="ar"
-                  />
-                </div>
-              </div>
+            {/* Professional Video & Iframe Source Suite */}
+            <div className="admin-form-field admin-field-full">
+              <AdminVideoSourceManager
+                videoUrl={formValues.video_url}
+                videoType={formValues.video_type}
+                servers={formValues.servers}
+                subtitleUrl={formValues.subtitle_url}
+                subtitleLang={formValues.subtitle_lang}
+                onChange={(updates) =>
+                  setFormValues((prev) => ({
+                    ...prev,
+                    video_url: updates.video_url,
+                    video_type: updates.video_type,
+                    servers: updates.servers,
+                    ...(updates.subtitle_url !== undefined ? { subtitle_url: updates.subtitle_url } : {}),
+                    ...(updates.subtitle_lang !== undefined ? { subtitle_lang: updates.subtitle_lang } : {}),
+                  }))
+                }
+              />
             </div>
 
             {/* Mutually Exclusive Radio Groups: Language & Publication Status */}

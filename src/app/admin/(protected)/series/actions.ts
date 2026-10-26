@@ -285,6 +285,8 @@ export async function saveEpisodeAction(formData: FormData): Promise<SeriesActio
     duration_minutes: String(formData.get("duration_minutes") ?? ""),
     audio_badge: String(formData.get("audio_badge") ?? "dubbed"),
     video_url: String(formData.get("video_url") ?? ""),
+    video_type: String(formData.get("video_type") ?? ""),
+    servers: String(formData.get("servers") ?? ""),
     subtitle_url: String(formData.get("subtitle_url") ?? ""),
     subtitle_lang: String(formData.get("subtitle_lang") ?? "ar"),
     status: String(formData.get("status") ?? "published"),

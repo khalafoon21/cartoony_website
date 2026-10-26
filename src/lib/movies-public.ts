@@ -7,7 +7,9 @@ import type {
   HomepageSectionConfig,
   HomepageSectionSetting,
   Movie,
+  VideoServer,
 } from "./movies";
+import { isVideoEmbedUrl } from "./video-helpers";
 
 export type { HomepageSectionSetting };
 import type { DbMovieCategoryJoin, DbMovieRow } from "./movies-admin";
@@ -124,6 +126,14 @@ function mapContent(row: DbMovieRow | DbSeriesRow, format: ContentFormat): Movie
     videoUrl: typeof (row as { metadata?: { video_url?: string } }).metadata?.video_url === "string"
       ? (row as { metadata?: { video_url?: string } }).metadata!.video_url
       : undefined,
+    videoType: ((row as any).metadata?.video_type === "iframe" || (row as any).metadata?.video_type === "direct")
+      ? (row as any).metadata.video_type
+      : typeof (row as any).metadata?.video_url === "string" && isVideoEmbedUrl((row as any).metadata.video_url)
+      ? "iframe"
+      : undefined,
+    servers: Array.isArray((row as any).metadata?.servers)
+      ? ((row as any).metadata.servers as VideoServer[])
+      : undefined,
     subtitleUrl: typeof (row as { metadata?: { subtitle_url?: string } }).metadata?.subtitle_url === "string"
       ? (row as { metadata?: { subtitle_url?: string } }).metadata!.subtitle_url
       : undefined,
@@ -211,6 +221,8 @@ export type PublicEpisode = {
   durationLabel: string;
   audioBadge: string;
   videoUrl?: string;
+  videoType?: "direct" | "iframe";
+  servers?: VideoServer[];
   subtitleUrl?: string;
   subtitleLang?: string;
 };
@@ -264,6 +276,15 @@ function mapPublicSeasons(rawSeasons?: DbSeasonJoin[]): PublicSeason[] {
         .map((ep) => {
           const videoUrl =
             typeof ep.metadata?.video_url === "string" ? ep.metadata.video_url : undefined;
+          const videoType =
+            ((ep.metadata as any)?.video_type === "iframe" || (ep.metadata as any)?.video_type === "direct")
+              ? (ep.metadata as any).video_type
+              : videoUrl && isVideoEmbedUrl(videoUrl)
+              ? "iframe"
+              : undefined;
+          const servers = Array.isArray((ep.metadata as any)?.servers)
+            ? ((ep.metadata as any).servers as VideoServer[])
+            : undefined;
           const subtitleUrl =
             typeof ep.metadata?.subtitle_url === "string" ? ep.metadata.subtitle_url : undefined;
           const subtitleLang =
@@ -280,6 +301,8 @@ function mapPublicSeasons(rawSeasons?: DbSeasonJoin[]): PublicSeason[] {
             durationLabel: `${ep.duration_minutes} دقيقة`,
             audioBadge: ep.audio_badge === "subtitled" ? "مترجم" : "مدبلج",
             videoUrl,
+            videoType,
+            servers,
             subtitleUrl,
             subtitleLang,
           };

@@ -3,12 +3,15 @@
 import {
   useCallback,
   useEffect,
+  useMemo,
   useRef,
   useState,
   type KeyboardEvent as ReactKeyboardEvent,
 } from "react";
 import { Icon } from "@/components/icon";
 import { useGoogleCast } from "@/lib/use-google-cast";
+import { IframePlayer } from "@/components/iframe-player";
+import { isVideoEmbedUrl, type VideoServer } from "@/lib/video-helpers";
 
 export type VideoPlayerProps = {
   src: string;
@@ -23,6 +26,8 @@ export type VideoPlayerProps = {
   className?: string;
   contentId?: string;
   contentType?: "movie" | "episode";
+  videoType?: "direct" | "iframe";
+  servers?: VideoServer[];
 };
 
 const SPEEDS = [0.5, 0.75, 1, 1.25, 1.5, 2];
@@ -39,7 +44,7 @@ function formatTime(seconds: number): string {
   return `${pad(m)}:${pad(s)}`;
 }
 
-export function VideoPlayer({
+function NativeVideoPlayer({
   src,
   poster,
   title,
@@ -869,6 +874,103 @@ export function VideoPlayer({
           </div>
         </div>
       </div>
+    </div>
+  );
+}
+
+export function VideoPlayer({
+  src,
+  poster,
+  title,
+  subtitleUrl,
+  subtitleLang = "ar",
+  subtitleLabel = "العربية",
+  accentColor = "#F5A623",
+  autoPlay = false,
+  onEnded,
+  className = "",
+  contentId,
+  contentType,
+  videoType,
+  servers,
+}: VideoPlayerProps) {
+  const [activeServerIndex, setActiveServerIndex] = useState(0);
+
+  const serversList = useMemo(() => {
+    if (servers && servers.length > 0) return servers;
+    if (src) {
+      const isEmbed = videoType === "iframe" || isVideoEmbedUrl(src);
+      return [
+        {
+          id: "srv-default",
+          name: isEmbed ? "مشغل التضمين" : "السيرفر الأساسي",
+          url: src,
+          type: (videoType || (isEmbed ? "iframe" : "direct")) as "direct" | "iframe",
+        },
+      ];
+    }
+    return [];
+  }, [servers, src, videoType]);
+
+  const activeServer = serversList[activeServerIndex] || serversList[0];
+  const activeUrl = activeServer?.url || src;
+  const activeType =
+    activeServer?.type ||
+    videoType ||
+    (isVideoEmbedUrl(activeUrl) ? "iframe" : "direct");
+
+  return (
+    <div className={`cartoony-universal-player ${className}`}>
+      {serversList.length > 1 && (
+        <div className="cartoony-servers-bar" role="tablist" aria-label="سيرفرات المشاهدة">
+          <div className="cartoony-servers-tag">
+            <Icon name="sparkles" size={14} />
+            <span>سيرفرات المشاهدة:</span>
+          </div>
+          <div className="cartoony-servers-tabs">
+            {serversList.map((server, idx) => (
+              <button
+                key={server.id || idx}
+                type="button"
+                role="tab"
+                aria-selected={activeServerIndex === idx}
+                className={`cartoony-server-tab ${activeServerIndex === idx ? "is-active" : ""}`}
+                onClick={() => setActiveServerIndex(idx)}
+              >
+                <span className="server-dot" />
+                <span>{server.name || `سيرفر ${idx + 1}`}</span>
+              </button>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {activeType === "iframe" ? (
+        <IframePlayer
+          key={activeUrl}
+          src={activeUrl}
+          title={title}
+          poster={poster}
+          accentColor={accentColor}
+          contentId={contentId}
+          contentType={contentType}
+        />
+      ) : (
+        <NativeVideoPlayer
+          key={activeUrl}
+          src={activeUrl}
+          poster={poster}
+          title={title}
+          subtitleUrl={subtitleUrl}
+          subtitleLang={subtitleLang}
+          subtitleLabel={subtitleLabel}
+          accentColor={accentColor}
+          autoPlay={autoPlay}
+          onEnded={onEnded}
+          contentId={contentId}
+          contentType={contentType}
+        />
+      )}
     </div>
   );
 }

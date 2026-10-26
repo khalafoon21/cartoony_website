@@ -3,6 +3,7 @@ import "server-only";
 import { getAdminSession } from "./admin-auth";
 import { deleteStorageImageIfOwnedAndUnused } from "./storage-admin";
 import { executeAdminRead, executeAdminWrite } from "./supabase-server";
+import { extractIframeSrc, isVideoEmbedUrl, type VideoServer } from "./video-helpers";
 import type {
   ArtThemeType,
   AudioBadgeType,
@@ -364,6 +365,8 @@ export function validateEpisodePayload(
     duration_minutes?: string | number;
     audio_badge?: string;
     video_url?: string;
+    video_type?: string;
+    servers?: string | VideoServer[];
     subtitle_url?: string;
     subtitle_lang?: string;
     metadata?: Record<string, unknown>;
@@ -414,9 +417,69 @@ export function validateEpisodePayload(
   const status: PublicationStatus =
     statusInput === "published" || statusInput === "archived" ? statusInput : "draft";
 
-  const rawVideo = String(raw.video_url ?? "").trim();
+  let rawVideo = extractIframeSrc(String(raw.video_url ?? "").trim());
+  let videoType: "direct" | "iframe" =
+    raw.video_type === "iframe" || raw.video_type === "direct"
+      ? (raw.video_type as "direct" | "iframe")
+      : isVideoEmbedUrl(rawVideo)
+      ? "iframe"
+      : "direct";
+
+  let parsedServers: VideoServer[] = [];
+  if (typeof raw.servers === "string" && raw.servers.trim()) {
+    try {
+      const parsed = JSON.parse(raw.servers);
+      if (Array.isArray(parsed)) {
+        parsedServers = parsed
+          .map((s, idx) => {
+            const cleanUrl = extractIframeSrc(String(s.url || "")).trim();
+            const sType =
+              s.type === "iframe" || s.type === "direct"
+                ? s.type
+                : isVideoEmbedUrl(cleanUrl)
+                ? "iframe"
+                : "direct";
+            return {
+              id: String(s.id || `srv-${idx + 1}`),
+              name: String(s.name || `سيرفر ${idx + 1}`).trim(),
+              url: cleanUrl,
+              type: sType as "direct" | "iframe",
+            };
+          })
+          .filter((s) => s.url && isValidUrlOrRelativePath(s.url));
+      }
+    } catch {
+      // Ignore invalid JSON
+    }
+  } else if (Array.isArray(raw.servers)) {
+    parsedServers = raw.servers
+      .map((s, idx) => {
+        const cleanUrl = extractIframeSrc(String(s.url || "")).trim();
+        const sType =
+          s.type === "iframe" || s.type === "direct"
+            ? s.type
+            : isVideoEmbedUrl(cleanUrl)
+            ? "iframe"
+            : "direct";
+        return {
+          id: String(s.id || `srv-${idx + 1}`),
+          name: String(s.name || `سيرفر ${idx + 1}`).trim(),
+          url: cleanUrl,
+          type: sType as "direct" | "iframe",
+        };
+      })
+      .filter((s) => s.url && isValidUrlOrRelativePath(s.url));
+  }
+
+  if (!rawVideo && parsedServers.length > 0) {
+    rawVideo = parsedServers[0].url;
+    videoType = parsedServers[0].type;
+  } else if (rawVideo && parsedServers.length === 0) {
+    parsedServers = [{ id: "srv-1", name: "السيرفر الأساسي", url: rawVideo, type: videoType }];
+  }
+
   if (rawVideo && !isValidUrlOrRelativePath(rawVideo)) {
-    return { ok: false, error: "رابط الفيديو غير صالح. يجب أن يبدأ بـ https:// أو http:// أو /." };
+    return { ok: false, error: "رابط مصدر الفيديو أو كود التضمين غير صالح. يرجى التأكد من الرابط." };
   }
 
   const rawSubtitle = String(raw.subtitle_url ?? "").trim();
@@ -429,8 +492,12 @@ export function validateEpisodePayload(
   };
   if (rawVideo) {
     metadata.video_url = rawVideo;
-  } else if ("video_url" in metadata) {
+    metadata.video_type = videoType;
+    metadata.servers = parsedServers;
+  } else {
     delete metadata.video_url;
+    delete metadata.video_type;
+    delete metadata.servers;
   }
 
   if (rawSubtitle) {

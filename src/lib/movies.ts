@@ -1,3 +1,6 @@
+import type { VideoServer } from "./video-helpers";
+export type { VideoServer };
+
 export type CategorySlug =
   | "movies"
   | "action"
@@ -110,6 +113,8 @@ export type Movie = {
   mostWatched?: boolean;
   recentlyAdded?: boolean;
   videoUrl?: string | null;
+  videoType?: "direct" | "iframe";
+  servers?: VideoServer[];
   subtitleUrl?: string | null;
   subtitleLang?: string;
   metadata?: Record<string, unknown>;

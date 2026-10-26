@@ -16,7 +16,9 @@ import {
   toggleSeriesPublishStatusAction,
 } from "./actions";
 import { AdminDataOriginBadge } from "@/components/admin-dashboard-widgets";
+import { AdminVideoSourceManager } from "@/components/admin-video-source-manager";
 import { Icon } from "@/components/icon";
+import type { VideoServer } from "@/lib/video-helpers";
 import type {
   ArtThemeType,
   AudioBadgeType,
@@ -136,6 +138,8 @@ type EpisodeFormValues = {
   duration_minutes: string;
   audio_badge: AudioBadgeType;
   video_url: string;
+  video_type: "direct" | "iframe";
+  servers: VideoServer[];
   subtitle_url: string;
   subtitle_lang: string;
   status: PublicationStatus;
@@ -155,6 +159,8 @@ const EMPTY_EPISODE_FORM: EpisodeFormValues = {
   duration_minutes: "22",
   audio_badge: "dubbed",
   video_url: "",
+  video_type: "iframe",
+  servers: [],
   subtitle_url: "",
   subtitle_lang: "ar",
   status: "published",
@@ -620,6 +626,8 @@ export function SeriesCrudClient({
       duration_minutes: "22",
       audio_badge: "dubbed",
       video_url: "",
+      video_type: "iframe",
+      servers: [],
       subtitle_url: "",
       subtitle_lang: "ar",
       status: "published",
@@ -632,9 +640,23 @@ export function SeriesCrudClient({
     if (!activeSeries) return;
     const meta = (episode.metadata ?? {}) as {
       video_url?: string;
+      video_type?: "direct" | "iframe";
+      servers?: VideoServer[];
       subtitle_url?: string;
       subtitle_lang?: string;
     };
+
+    const rawUrl = meta.video_url || "";
+    const initialType: "direct" | "iframe" =
+      meta.video_type === "direct" || meta.video_type === "iframe"
+        ? meta.video_type
+        : "iframe";
+    const initialServers: VideoServer[] =
+      Array.isArray(meta.servers) && meta.servers.length > 0
+        ? meta.servers
+        : rawUrl
+        ? [{ id: "srv-1", name: "السيرفر الأساسي", url: rawUrl, type: initialType }]
+        : [];
 
     setEpisodeFormValues({
       episode_id: episode.id,
@@ -649,7 +671,9 @@ export function SeriesCrudClient({
       still_url: episode.still_url ?? "",
       duration_minutes: String(episode.duration_minutes),
       audio_badge: episode.audio_badge,
-      video_url: meta.video_url || "",
+      video_url: rawUrl,
+      video_type: initialType,
+      servers: initialServers,
       subtitle_url: meta.subtitle_url || "",
       subtitle_lang: meta.subtitle_lang || "ar",
       status: episode.status,
@@ -1640,7 +1664,11 @@ export function SeriesCrudClient({
                                       color: "#81E6D9",
                                     }}
                                   >
-                                    رابط متوفر
+                                    {(ep.metadata as any)?.video_type === "iframe"
+                                      ? "تضمين Iframe"
+                                      : Array.isArray((ep.metadata as any)?.servers) && (ep.metadata as any).servers.length > 1
+                                      ? `${(ep.metadata as any).servers.length} سيرفرات`
+                                      : "فيديو مباشر"}
                                   </span>
                                 ) : (
                                   <span className="admin-field-hint">بدون فيديو</span>
@@ -2142,58 +2170,23 @@ export function SeriesCrudClient({
                 </select>
               </div>
 
-              <div className="admin-form-field">
-                <label htmlFor="field-ep-video">رابط الفيديو (اختياري)</label>
-                <input
-                  id="field-ep-video"
-                  name="video_url"
-                  type="url"
-                  dir="ltr"
-                  value={episodeFormValues.video_url}
-                  onChange={(e) =>
+              <div className="admin-form-field admin-field-full">
+                <AdminVideoSourceManager
+                  videoUrl={episodeFormValues.video_url}
+                  videoType={episodeFormValues.video_type}
+                  servers={episodeFormValues.servers}
+                  subtitleUrl={episodeFormValues.subtitle_url}
+                  subtitleLang={episodeFormValues.subtitle_lang}
+                  onChange={(updates) =>
                     setEpisodeFormValues((prev) => ({
                       ...prev,
-                      video_url: e.target.value,
+                      video_url: updates.video_url,
+                      video_type: updates.video_type,
+                      servers: updates.servers,
+                      ...(updates.subtitle_url !== undefined ? { subtitle_url: updates.subtitle_url } : {}),
+                      ...(updates.subtitle_lang !== undefined ? { subtitle_lang: updates.subtitle_lang } : {}),
                     }))
                   }
-                  placeholder="https://... مصدر المشاهدة (.mp4 أو .m3u8)"
-                />
-              </div>
-
-              <div className="admin-form-field">
-                <label htmlFor="field-ep-subtitle">ملف الترجمة (اختياري .vtt)</label>
-                <input
-                  id="field-ep-subtitle"
-                  name="subtitle_url"
-                  type="url"
-                  dir="ltr"
-                  value={episodeFormValues.subtitle_url}
-                  onChange={(e) =>
-                    setEpisodeFormValues((prev) => ({
-                      ...prev,
-                      subtitle_url: e.target.value,
-                    }))
-                  }
-                  placeholder="https://.../sub.vtt"
-                />
-              </div>
-
-              <div className="admin-form-field">
-                <label htmlFor="field-ep-sublang">لغة الترجمة</label>
-                <input
-                  id="field-ep-sublang"
-                  name="subtitle_lang"
-                  type="text"
-                  dir="ltr"
-                  maxLength={10}
-                  value={episodeFormValues.subtitle_lang}
-                  onChange={(e) =>
-                    setEpisodeFormValues((prev) => ({
-                      ...prev,
-                      subtitle_lang: e.target.value,
-                    }))
-                  }
-                  placeholder="ar"
                 />
               </div>
             </div>

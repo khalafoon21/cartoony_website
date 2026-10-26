@@ -64,6 +64,8 @@ export async function saveMovieAction(formData: FormData): Promise<MovieActionRe
     is_most_watched: formData.get("is_most_watched") === "on",
     is_recently_added: formData.get("is_recently_added") === "on",
     video_url: String(formData.get("video_url") ?? ""),
+    video_type: String(formData.get("video_type") ?? ""),
+    servers: String(formData.get("servers") ?? ""),
     subtitle_url: String(formData.get("subtitle_url") ?? ""),
     subtitle_lang: String(formData.get("subtitle_lang") ?? "ar"),
     status: String(formData.get("status") ?? "draft"),
