@@ -317,7 +317,8 @@ export function SearchViewClient({
 
           <input
             ref={inputRef}
-            type="search"
+            type="text"
+            inputMode="search"
             value={query}
             onChange={(e) => setQuery(e.target.value)}
             onKeyDown={(e) => {
@@ -331,10 +332,11 @@ export function SearchViewClient({
                 inputRef.current?.blur();
               }
             }}
-            placeholder="ابحث باسم الفيلم، المسلسل، أو الشخصية بالعربي أو الإنجليزي..."
+            placeholder="ابحث عن فيلم، مسلسل، أو شخصية..."
             className="search-modern-input"
             autoComplete="off"
             autoCorrect="off"
+            autoCapitalize="off"
             spellCheck={false}
             enterKeyHint="search"
             dir="rtl"

@@ -9746,21 +9746,29 @@ select:focus-visible {
 .search-modern-input:focus-visible {
   flex: 1;
   min-width: 0;
+  height: 28px !important;
+  line-height: 28px !important;
+  margin: 0 !important;
+  padding: 0 !important;
+  -webkit-appearance: none !important;
+  appearance: none !important;
   background: transparent !important;
   border: none !important;
   outline: none !important;
   outline-offset: 0 !important;
   box-shadow: none !important;
   color: var(--cream);
-  font-size: 15px;
+  caret-color: var(--orange);
+  font-size: 16px !important;
   font-weight: 600;
-  padding: 12px 0;
   text-align: right;
   direction: rtl;
 }
 
 .search-modern-input::placeholder {
   color: #7D8FA9;
+  font-size: 15px !important;
+  line-height: 28px !important;
   font-weight: 500;
   text-align: right;
 }
@@ -9814,6 +9822,13 @@ select:focus-visible {
 
 .quick-filter-bar.is-search-filter-bar {
   justify-content: center;
+  background: transparent !important;
+  border: none !important;
+  box-shadow: none !important;
+  backdrop-filter: none !important;
+  -webkit-backdrop-filter: none !important;
+  padding: 2px 0 !important;
+  border-radius: 0 !important;
 }
 
 /* Recent Searches Bar */
@@ -9978,16 +9993,20 @@ select:focus-visible {
     border-radius: 999px !important;
   }
 
-  /* 16px prevents iOS Safari from auto-zooming the viewport on tap */
+  /* 16px + matching line-height prevents iOS Safari auto-zoom and fixes oversized caret */
   .search-modern-input,
   .search-modern-input:focus,
   .search-modern-input:focus-visible {
+    height: 26px !important;
+    line-height: 26px !important;
     font-size: 16px !important;
-    padding: 10px 0 !important;
+    padding: 0 !important;
+    margin: 0 !important;
   }
 
   .search-modern-input::placeholder {
-    font-size: 13px !important;
+    font-size: 14px !important;
+    line-height: 26px !important;
   }
 
   .search-shortcut-kbd {
@@ -10002,8 +10021,11 @@ select:focus-visible {
   }
 
   .quick-filter-bar.is-search-filter-bar {
-    padding: 6px 8px !important;
-    border-radius: 999px !important;
+    padding: 2px 0 !important;
+    border-radius: 0 !important;
+    background: transparent !important;
+    border: none !important;
+    box-shadow: none !important;
     flex-direction: row !important;
     align-items: center !important;
     justify-content: flex-start !important;
@@ -10015,14 +10037,23 @@ select:focus-visible {
     overflow-x: auto !important;
     scrollbar-width: none !important;
     -webkit-overflow-scrolling: touch !important;
-    gap: 6px !important;
+    gap: 8px !important;
+    padding: 2px 2px 4px !important;
   }
 
   .quick-filter-bar.is-search-filter-bar .quick-filter-pill {
-    min-height: 34px !important;
-    padding: 0 12px !important;
+    min-height: 36px !important;
+    padding: 0 14px !important;
     font-size: 12px !important;
     border-radius: 999px !important;
+    background: rgba(24, 36, 64, 0.72) !important;
+    border: 1px solid rgba(255, 255, 255, 0.1) !important;
+  }
+
+  .quick-filter-bar.is-search-filter-bar .quick-filter-pill.is-active {
+    background: linear-gradient(135deg, var(--orange) 0%, #E08E12 100%) !important;
+    border-color: rgba(255, 224, 163, 0.65) !important;
+    color: #10182C !important;
   }
 
   /* Single-row swipeable recent searches on mobile so results stay above the fold */

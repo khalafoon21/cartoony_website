@@ -51,16 +51,18 @@ export function MobileHeader() {
           </div>
         </Link>
 
-        {/* Quick Search Pill & Watchlist Button (No duplicate Movies icon) */}
+        {/* Quick Search Pill & Watchlist Button (Hide search pill when already on /search) */}
         <div className="mobile-header-actions">
-          <Link
-            href="/search"
-            className="mobile-header-search-pill"
-            aria-label="البحث الذكي في كارتوني"
-          >
-            <Icon name="search" size={16} />
-            <span>ابحث...</span>
-          </Link>
+          {!pathname?.startsWith("/search") && (
+            <Link
+              href="/search"
+              className="mobile-header-search-pill"
+              aria-label="البحث الذكي في كارتوني"
+            >
+              <Icon name="search" size={16} />
+              <span>ابحث...</span>
+            </Link>
+          )}
 
           <Link
             href="/#saved"
