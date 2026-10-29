@@ -1,615 +1,533 @@
 "use client";
 
-import { useEffect, useRef, useState, useTransition } from "react";
-import Link from "next/link";
-import { useRouter, useSearchParams } from "next/navigation";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Icon } from "@/components/icon";
 import { MovieCard } from "@/components/movie-card";
-import { getContentHref } from "@/lib/content-links";
+import { useWatchlist } from "@/lib/use-watchlist";
 import type { Movie } from "@/lib/movies";
-import type { SearchSuggestion } from "@/lib/search-public";
+
+export type QuickSearchFilter = "all" | "movie" | "series" | "dubbed" | "subtitled";
 
 export type SearchViewClientProps = {
-  initialItems: Movie[];
-  totalCount: number;
-  totalPages: number;
-  currentPage: number;
-  availableYears: number[];
-  availableAgeRatings: string[];
+  allItems: Movie[];
   initialQuery?: string;
-  initialFormat?: string;
-  initialCategory?: string;
-  initialYear?: string;
-  initialAgeRating?: string;
-  initialMinRating?: number;
-  initialSortBy?: string;
+  initialFilter?: string;
   error?: string;
 };
 
-const CATEGORIES = [
-  { slug: "all", label: "كل التصنيفات" },
-  { slug: "action", label: "حركة وإثارة" },
-  { slug: "adventure", label: "مغامرات" },
-  { slug: "comedy", label: "كوميديا" },
-  { slug: "family", label: "عائلي" },
-  { slug: "fantasy", label: "خيال وأساطير" },
-  { slug: "anime", label: "أنمي" },
-];
+const RECENT_SEARCHES_KEY = "cartoony:recent_searches";
+const MAX_RECENT_SEARCHES = 6;
+const PAGE_STEP = 18;
 
-const SORT_OPTIONS = [
-  { value: "relevance", label: "الأكثر صلة" },
-  { value: "newest", label: "الأحدث إصداراً" },
-  { value: "oldest", label: "الأقدم إصداراً" },
-  { value: "highest_rated", label: "الأعلى تقييماً" },
-  { value: "title_asc", label: "أبجدياً (أ - ي)" },
-];
+/**
+ * Normalizes Arabic & English text for instant fuzzy-friendly matching:
+ * - Strips Arabic diacritics / tashkeel & tatweel
+ * - Normalizes Alef variants (أ, إ, آ, ٱ -> ا)
+ * - Normalizes Teh Marbuta (ة -> ه) and Alef Maksura (ى -> ي)
+ * - Strips leading Arabic definite article "ال" from each word so "اسد" matches "الأسد"
+ */
+export function normalizeSearchText(text: string): string {
+  if (!text) return "";
+  return text
+    .replace(/[\u064B-\u065F\u0670]/g, "")
+    .replace(/[أإآٱ]/g, "ا")
+    .replace(/ة/g, "ه")
+    .replace(/ى/g, "ي")
+    .replace(/ـ/g, "")
+    .toLowerCase()
+    .split(/\s+/)
+    .map((word) => (word.length > 3 && word.startsWith("ال") ? word.slice(2) : word))
+    .join(" ")
+    .trim();
+}
+
+function parseInitialFilter(raw?: string): QuickSearchFilter {
+  if (
+    raw === "movie" ||
+    raw === "series" ||
+    raw === "dubbed" ||
+    raw === "subtitled"
+  ) {
+    return raw;
+  }
+  return "all";
+}
+
+function readRecentSearches(): string[] {
+  if (typeof window === "undefined") return [];
+  try {
+    const raw = window.localStorage.getItem(RECENT_SEARCHES_KEY);
+    if (!raw) return [];
+    const parsed = JSON.parse(raw);
+    if (!Array.isArray(parsed)) return [];
+    return parsed
+      .filter((item): item is string => typeof item === "string" && item.trim().length > 0)
+      .slice(0, MAX_RECENT_SEARCHES);
+  } catch {
+    return [];
+  }
+}
+
+function writeRecentSearches(items: string[]) {
+  if (typeof window === "undefined") return;
+  try {
+    window.localStorage.setItem(
+      RECENT_SEARCHES_KEY,
+      JSON.stringify(items.slice(0, MAX_RECENT_SEARCHES))
+    );
+  } catch {
+    // Ignore storage errors
+  }
+}
 
 export function SearchViewClient({
-  initialItems,
-  totalCount,
-  totalPages,
-  currentPage,
-  availableYears,
-  availableAgeRatings,
+  allItems,
   initialQuery = "",
-  initialFormat = "all",
-  initialCategory = "all",
-  initialYear = "all",
-  initialAgeRating = "all",
-  initialMinRating = 0,
-  initialSortBy = "relevance",
+  initialFilter = "all",
   error,
 }: SearchViewClientProps) {
-  const router = useRouter();
-  const searchParams = useSearchParams();
-  const [isPending, startTransition] = useTransition();
+  const { savedIds, toggleSave } = useWatchlist();
+  const inputRef = useRef<HTMLInputElement | null>(null);
 
-  const [inputValue, setInputValue] = useState(initialQuery);
-  const [suggestions, setSuggestions] = useState<SearchSuggestion[]>([]);
-  const [showSuggestions, setShowSuggestions] = useState(false);
-  const [isSearchingSuggestions, setIsSearchingSuggestions] = useState(false);
+  const [query, setQuery] = useState(initialQuery);
+  const [activeFilter, setActiveFilter] = useState<QuickSearchFilter>(() =>
+    parseInitialFilter(initialFilter)
+  );
+  const [visibleCount, setVisibleCount] = useState(PAGE_STEP);
+  const [recentSearches, setRecentSearches] = useState<string[]>([]);
 
-  const searchBoxRef = useRef<HTMLDivElement>(null);
-  const debounceTimerRef = useRef<NodeJS.Timeout | null>(null);
-
-  // Sync state when URL search params change
+  // Load recent searches on mount
   useEffect(() => {
-    setInputValue(searchParams.get("q") || "");
-  }, [searchParams]);
-
-  // Click outside to close suggestions
-  useEffect(() => {
-    const handleClickOutside = (e: MouseEvent) => {
-      if (searchBoxRef.current && !searchBoxRef.current.contains(e.target as Node)) {
-        setShowSuggestions(false);
-      }
-    };
-    document.addEventListener("mousedown", handleClickOutside);
-    return () => document.removeEventListener("mousedown", handleClickOutside);
+    setRecentSearches(readRecentSearches());
   }, []);
 
-  // Fetch live autocomplete suggestions as user types
+  // Global "/" shortcut to focus search and "Escape" to clear
   useEffect(() => {
-    const trimmed = inputValue.trim();
-    if (!trimmed || trimmed.length < 2) {
-      setSuggestions([]);
-      setShowSuggestions(false);
-      return;
-    }
+    const handleGlobalKeyDown = (e: KeyboardEvent) => {
+      if (e.isComposing || e.keyCode === 229) return;
+      const target = e.target as HTMLElement | null;
+      const isInput =
+        target?.tagName === "INPUT" ||
+        target?.tagName === "TEXTAREA" ||
+        target?.isContentEditable;
 
-    if (debounceTimerRef.current) {
-      clearTimeout(debounceTimerRef.current);
-    }
-
-    debounceTimerRef.current = setTimeout(async () => {
-      setIsSearchingSuggestions(true);
-      try {
-        const res = await fetch(`/api/search/suggestions?q=${encodeURIComponent(trimmed)}`);
-        if (res.ok) {
-          const data = await res.json();
-          setSuggestions(data.suggestions || []);
-          setShowSuggestions(Boolean(data.suggestions && data.suggestions.length > 0));
-        }
-      } catch {
-        // Ignore suggestion network errors
-      } finally {
-        setIsSearchingSuggestions(false);
-      }
-    }, 240);
-
-    return () => {
-      if (debounceTimerRef.current) {
-        clearTimeout(debounceTimerRef.current);
+      if (e.key === "/" && !isInput) {
+        e.preventDefault();
+        inputRef.current?.focus();
+        inputRef.current?.select();
       }
     };
-  }, [inputValue]);
+    window.addEventListener("keydown", handleGlobalKeyDown);
+    return () => window.removeEventListener("keydown", handleGlobalKeyDown);
+  }, []);
 
-  const updateFilters = (changes: Record<string, string | number | undefined>) => {
-    const params = new URLSearchParams(searchParams.toString());
+  // Save a search term into recent searches
+  const saveRecentTerm = useCallback((term: string) => {
+    const cleaned = term.trim();
+    if (cleaned.length < 2) return;
+    setRecentSearches((prev) => {
+      const next = [
+        cleaned,
+        ...prev.filter((item) => item.toLowerCase() !== cleaned.toLowerCase()),
+      ].slice(0, MAX_RECENT_SEARCHES);
+      writeRecentSearches(next);
+      return next;
+    });
+  }, []);
 
-    // Merge changes
-    for (const [key, value] of Object.entries(changes)) {
-      if (value === undefined || value === "" || value === "all" || value === 0) {
-        params.delete(key);
-      } else {
-        params.set(key, String(value));
-      }
-    }
-
-    // Reset to page 1 unless page change specifically requested
-    if (!("page" in changes)) {
-      params.delete("page");
-    }
-
-    startTransition(() => {
-      router.push(`/search?${params.toString()}`);
+  const removeRecentTerm = (term: string) => {
+    setRecentSearches((prev) => {
+      const next = prev.filter((item) => item !== term);
+      writeRecentSearches(next);
+      return next;
     });
   };
 
-  const handleSearchSubmit = (e: React.FormEvent) => {
-    e.preventDefault();
-    setShowSuggestions(false);
-    updateFilters({ q: inputValue.trim() });
+  const clearAllRecent = () => {
+    setRecentSearches([]);
+    writeRecentSearches([]);
   };
 
-  const handleClearSearch = () => {
-    setInputValue("");
-    setShowSuggestions(false);
-    updateFilters({ q: "" });
-  };
+  // Sync URL query & filter using replaceState (without polluting browser history)
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    const timer = setTimeout(() => {
+      const params = new URLSearchParams();
+      const trimmed = query.trim();
+      if (trimmed) params.set("q", trimmed);
+      if (activeFilter !== "all") params.set("filter", activeFilter);
+      const qs = params.toString();
+      const nextUrl = qs ? `/search?${qs}` : "/search";
+      window.history.replaceState(null, "", nextUrl);
+    }, 180);
 
-  const hasActiveFilters = Boolean(
-    initialQuery ||
-      initialFormat !== "all" ||
-      initialCategory !== "all" ||
-      initialYear !== "all" ||
-      initialAgeRating !== "all" ||
-      initialMinRating > 0 ||
-      (initialSortBy !== "relevance" && initialSortBy !== "newest")
+    return () => clearTimeout(timer);
+  }, [query, activeFilter]);
+
+  // Save typed query to recent searches after user pauses typing
+  useEffect(() => {
+    const trimmed = query.trim();
+    if (trimmed.length < 2) return;
+    const timer = setTimeout(() => {
+      saveRecentTerm(trimmed);
+    }, 1100);
+    return () => clearTimeout(timer);
+  }, [query, saveRecentTerm]);
+
+  // Reset pagination count when query or filter changes
+  useEffect(() => {
+    setVisibleCount(PAGE_STEP);
+  }, [query, activeFilter]);
+
+  // Pre-index normalized fields once for instant 0ms client-side filtering
+  const indexedCatalog = useMemo(() => {
+    return allItems.map((item) => {
+      const normTitle = normalizeSearchText(item.title);
+      const normEnglish = normalizeSearchText(item.englishTitle);
+      const normFranchise = normalizeSearchText(item.franchise);
+      const normCategory = normalizeSearchText(
+        [item.categoryLabel, ...(item.categoryLabels || [])].join(" ")
+      );
+      const normDesc = normalizeSearchText(item.description);
+      const isDubbed = (item.audioBadge || "").includes("مدبلج");
+      return {
+        item,
+        normTitle,
+        normEnglish,
+        normFranchise,
+        normCategory,
+        normDesc,
+        searchableBlob: `${normTitle} ${normEnglish} ${normFranchise} ${normCategory} ${normDesc} ${item.year || ""}`,
+        isDubbed,
+      };
+    });
+  }, [allItems]);
+
+  // Compute filter counts (before applying activeFilter so each pill shows accurate count)
+  const queryMatchedEntries = useMemo(() => {
+    const clean = query.trim();
+    const normQuery = normalizeSearchText(clean);
+    const tokens = normQuery.split(/\s+/).filter(Boolean);
+
+    if (tokens.length === 0) {
+      return indexedCatalog.map((entry) => ({ entry, score: 0 }));
+    }
+
+    const matches: Array<{ entry: (typeof indexedCatalog)[number]; score: number }> = [];
+
+    for (const entry of indexedCatalog) {
+      const matchesAll = tokens.every((tk) => entry.searchableBlob.includes(tk));
+      if (!matchesAll) continue;
+
+      let score = 0;
+      if (entry.normTitle === normQuery) score += 160;
+      else if (entry.normTitle.startsWith(normQuery)) score += 100;
+      else if (entry.normTitle.includes(normQuery)) score += 70;
+
+      if (entry.normEnglish.includes(normQuery)) score += 50;
+      if (entry.normFranchise.includes(normQuery)) score += 35;
+      if (entry.normCategory.includes(normQuery)) score += 25;
+      if (entry.normDesc.includes(normQuery)) score += 10;
+
+      matches.push({ entry, score });
+    }
+
+    matches.sort((a, b) => {
+      if (b.score !== a.score) return b.score - a.score;
+      return (b.entry.item.year || 0) - (a.entry.item.year || 0);
+    });
+
+    return matches;
+  }, [indexedCatalog, query]);
+
+  const filterCounts = useMemo(() => {
+    let movie = 0;
+    let series = 0;
+    let dubbed = 0;
+    let subtitled = 0;
+    for (const { entry } of queryMatchedEntries) {
+      if (entry.item.format === "movie") movie++;
+      else if (entry.item.format === "series") series++;
+      if (entry.isDubbed) dubbed++;
+      else subtitled++;
+    }
+    return {
+      all: queryMatchedEntries.length,
+      movie,
+      series,
+      dubbed,
+      subtitled,
+    };
+  }, [queryMatchedEntries]);
+
+  const filteredMovies = useMemo(() => {
+    return queryMatchedEntries
+      .filter(({ entry }) => {
+        if (activeFilter === "movie") return entry.item.format === "movie";
+        if (activeFilter === "series") return entry.item.format === "series";
+        if (activeFilter === "dubbed") return entry.isDubbed;
+        if (activeFilter === "subtitled") return !entry.isDubbed;
+        return true;
+      })
+      .map(({ entry }) => entry.item);
+  }, [queryMatchedEntries, activeFilter]);
+
+  const visibleMovies = useMemo(
+    () => filteredMovies.slice(0, visibleCount),
+    [filteredMovies, visibleCount]
   );
 
-  const handleResetAll = () => {
-    setInputValue("");
-    setShowSuggestions(false);
-    startTransition(() => {
-      router.push("/search");
-    });
+  const hasMore = visibleCount < filteredMovies.length;
+  const isSearchActive = query.trim().length > 0 || activeFilter !== "all";
+
+  const handleReset = () => {
+    setQuery("");
+    setActiveFilter("all");
+    inputRef.current?.focus();
   };
 
   return (
-    <div className="search-page-container">
-      {/* Header and Hero Bar */}
-      <header className="search-header-hero">
-        <div className="search-heading-meta">
-          <span className="eyebrow">مكتبة كارتوني الشاملة</span>
-          <h1>
-            البحث والاستكشاف<span style={{ color: "var(--orange)" }}>.</span>
-          </h1>
-          <p>ابحث عن أفلامك ومسلسلاتك المفضلة بالعربية أو بالإنجليزية مع تصفيات دقيقة.</p>
-        </div>
-
-        {/* Search Input Box with Autocomplete Dropdown */}
-        <div ref={searchBoxRef} className="search-input-wrapper">
-          <form onSubmit={handleSearchSubmit} className="search-bar-form" role="search">
-            <span className="search-icon-box" aria-hidden="true">
-              <Icon name="search" size={20} />
-            </span>
-
-            <input
-              type="search"
-              value={inputValue}
-              onChange={(e) => setInputValue(e.target.value)}
-              onFocus={() => {
-                if (suggestions.length > 0) setShowSuggestions(true);
-              }}
-              placeholder="ابحث بالعنوان، السلسلة، أو قصة العمل... (مثال: الأسد الملك، Gravity Falls)"
-              className="search-main-input"
-              autoComplete="off"
-              dir="auto"
-            />
-
-            {inputValue && (
-              <button
-                type="button"
-                onClick={handleClearSearch}
-                className="search-clear-btn"
-                aria-label="مسح البحث"
-              >
-                <Icon name="close" size={16} />
-              </button>
-            )}
-
-            <button type="submit" className="search-submit-btn">
-              <span>بحث</span>
+    <div className="search-page-container is-modern-search">
+      {/* Sticky Spatial Search Header */}
+      <header className="search-modern-header">
+        <div className="search-modern-title-row">
+          <div>
+            <span className="eyebrow">بحث فوري وذكي</span>
+            <h1>
+              ابحث في كارتوني<span style={{ color: "var(--orange)" }}>.</span>
+            </h1>
+          </div>
+          {isSearchActive && (
+            <button
+              type="button"
+              className="quick-filter-reset"
+              onClick={handleReset}
+            >
+              <Icon name="close" size={13} />
+              <span>إعادة ضبط</span>
             </button>
-          </form>
-
-          {/* Autocomplete Suggestions Menu */}
-          {showSuggestions && suggestions.length > 0 && (
-            <div className="search-suggestions-dropdown" role="listbox">
-              <div className="suggestions-header">
-                <span>اقتراحات سريعة</span>
-                {isSearchingSuggestions && <small>جاري البحث...</small>}
-              </div>
-              <ul className="suggestions-list">
-                {suggestions.map((item) => (
-                  <li key={item.id}>
-                    <Link
-                      href={getContentHref(item)}
-                      className="suggestion-item-link"
-                      onClick={() => setShowSuggestions(false)}
-                    >
-                      <div className="suggestion-thumb">
-                        {item.posterUrl ? (
-                          // eslint-disable-next-line @next/next/no-img-element
-                          <img src={item.posterUrl} alt={item.title} />
-                        ) : (
-                          <Icon name="sparkles" size={18} />
-                        )}
-                      </div>
-                      <div className="suggestion-info">
-                        <span className="suggestion-title">{item.title}</span>
-                        <div className="suggestion-sub">
-                          <span className="suggestion-badge">
-                            {item.format === "series" ? "مسلسل" : "فيلم"}
-                          </span>
-                          <span className="meta-dot" />
-                          <span>{item.year}</span>
-                          <span className="meta-dot" />
-                          <span>{item.categoryLabel}</span>
-                          {item.englishTitle && (
-                            <>
-                              <span className="meta-dot" />
-                              <span dir="ltr" className="suggestion-en">
-                                {item.englishTitle}
-                              </span>
-                            </>
-                          )}
-                        </div>
-                      </div>
-                      <span className="suggestion-rating">
-                        <Icon name="star" size={13} />
-                        <b>{item.rating}</b>
-                      </span>
-                    </Link>
-                  </li>
-                ))}
-              </ul>
-            </div>
           )}
         </div>
+
+        {/* Instant Glass Search Input */}
+        <div className="search-modern-box" role="search">
+          <span className="search-modern-icon" aria-hidden="true">
+            <Icon name="search" size={20} />
+          </span>
+
+          <input
+            ref={inputRef}
+            type="search"
+            value={query}
+            onChange={(e) => setQuery(e.target.value)}
+            onKeyDown={(e) => {
+              if (e.nativeEvent.isComposing || e.keyCode === 229) return;
+              if (e.key === "Escape" && query) {
+                e.preventDefault();
+                setQuery("");
+              } else if (e.key === "Enter" && query.trim()) {
+                e.preventDefault();
+                saveRecentTerm(query.trim());
+                inputRef.current?.blur();
+              }
+            }}
+            placeholder="ابحث باسم الفيلم، المسلسل، أو الشخصية بالعربي أو الإنجليزي..."
+            className="search-modern-input"
+            autoComplete="off"
+            autoCorrect="off"
+            spellCheck={false}
+            enterKeyHint="search"
+            dir="rtl"
+            aria-label="ابحث في مكتبة كارتوني"
+          />
+
+          {query ? (
+            <button
+              type="button"
+              onClick={() => {
+                setQuery("");
+                inputRef.current?.focus();
+              }}
+              className="search-modern-clear"
+              aria-label="مسح النص"
+            >
+              <Icon name="close" size={15} />
+              <span>مسح</span>
+            </button>
+          ) : (
+            <kbd className="search-shortcut-kbd" aria-hidden="true">
+              /
+            </kbd>
+          )}
+        </div>
+
+        {/* Single Clean Quick Filter Pills Row (Same DNA as Homepage) */}
+        <div className="quick-filter-bar is-search-filter-bar">
+          <div className="quick-filter-pills" role="tablist" aria-label="تصفية سريعة">
+            <button
+              type="button"
+              role="tab"
+              aria-selected={activeFilter === "all"}
+              className={`quick-filter-pill ${activeFilter === "all" ? "is-active" : ""}`}
+              onClick={() => setActiveFilter("all")}
+            >
+              <Icon name="sparkles" size={14} />
+              <span>الكل</span>
+              <span className="quick-filter-count">{filterCounts.all}</span>
+            </button>
+
+            <button
+              type="button"
+              role="tab"
+              aria-selected={activeFilter === "movie"}
+              className={`quick-filter-pill ${activeFilter === "movie" ? "is-active" : ""}`}
+              onClick={() => setActiveFilter("movie")}
+            >
+              <Icon name="film" size={14} />
+              <span>أفلام</span>
+              <span className="quick-filter-count">{filterCounts.movie}</span>
+            </button>
+
+            <button
+              type="button"
+              role="tab"
+              aria-selected={activeFilter === "series"}
+              className={`quick-filter-pill ${activeFilter === "series" ? "is-active" : ""}`}
+              onClick={() => setActiveFilter("series")}
+            >
+              <Icon name="tv" size={14} />
+              <span>مسلسلات</span>
+              <span className="quick-filter-count">{filterCounts.series}</span>
+            </button>
+
+            <button
+              type="button"
+              role="tab"
+              aria-selected={activeFilter === "dubbed"}
+              className={`quick-filter-pill ${activeFilter === "dubbed" ? "is-active" : ""}`}
+              onClick={() => setActiveFilter("dubbed")}
+            >
+              <span>مدبلج عربي</span>
+              <span className="quick-filter-count">{filterCounts.dubbed}</span>
+            </button>
+
+            <button
+              type="button"
+              role="tab"
+              aria-selected={activeFilter === "subtitled"}
+              className={`quick-filter-pill ${activeFilter === "subtitled" ? "is-active" : ""}`}
+              onClick={() => setActiveFilter("subtitled")}
+            >
+              <span>مترجم</span>
+              <span className="quick-filter-count">{filterCounts.subtitled}</span>
+            </button>
+          </div>
+        </div>
+
+        {/* Recent Searches Chips (Shown when query is empty) */}
+        {!query.trim() && recentSearches.length > 0 && (
+          <div className="search-recent-bar" aria-label="عمليات البحث الأخيرة">
+            <div className="search-recent-header">
+              <span className="search-recent-label">عمليات البحث الأخيرة:</span>
+              <button
+                type="button"
+                className="search-recent-clear-all"
+                onClick={clearAllRecent}
+              >
+                مسح السجل
+              </button>
+            </div>
+            <div className="search-recent-chips">
+              {recentSearches.map((term) => (
+                <div key={term} className="search-recent-chip">
+                  <button
+                    type="button"
+                    className="search-recent-chip-btn"
+                    onClick={() => setQuery(term)}
+                  >
+                    <Icon name="search" size={12} />
+                    <span>{term}</span>
+                  </button>
+                  <button
+                    type="button"
+                    className="search-recent-chip-remove"
+                    onClick={() => removeRecentTerm(term)}
+                    aria-label={`حذف "${term}" من السجل`}
+                  >
+                    ×
+                  </button>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
       </header>
 
-      {/* Format Switcher Tabs: All / Movies / Series */}
-      <div className="search-format-tabs" role="tablist" aria-label="نوع المحتوى">
-        <button
-          type="button"
-          role="tab"
-          aria-selected={initialFormat === "all"}
-          className={`search-format-pill ${initialFormat === "all" ? "is-active" : ""}`}
-          onClick={() => updateFilters({ format: "all" })}
-        >
-          <Icon name="sparkles" size={16} />
-          <span>الكل ({totalCount})</span>
-        </button>
-        <button
-          type="button"
-          role="tab"
-          aria-selected={initialFormat === "movie"}
-          className={`search-format-pill ${initialFormat === "movie" ? "is-active" : ""}`}
-          onClick={() => updateFilters({ format: "movie" })}
-        >
-          <Icon name="film" size={16} />
-          <span>أفلام كرتون</span>
-        </button>
-        <button
-          type="button"
-          role="tab"
-          aria-selected={initialFormat === "series"}
-          className={`search-format-pill ${initialFormat === "series" ? "is-active" : ""}`}
-          onClick={() => updateFilters({ format: "series" })}
-        >
-          <Icon name="grid" size={16} />
-          <span>مسلسلات كرتون</span>
-        </button>
-      </div>
-
-      {/* Secondary Filter Bar & Sort Controls */}
-      <div className="search-filters-bar">
-        <div className="search-filter-select-group">
-          {/* Category Filter */}
-          <div className="search-select-wrap">
-            <label htmlFor="filter-category" className="visually-hidden">
-              التصنيف
-            </label>
-            <select
-              id="filter-category"
-              value={initialCategory}
-              onChange={(e) => updateFilters({ category: e.target.value })}
-              className="search-select"
-            >
-              {CATEGORIES.map((cat) => (
-                <option key={cat.slug} value={cat.slug}>
-                  {cat.label}
-                </option>
-              ))}
-            </select>
-          </div>
-
-          {/* Release Year Filter */}
-          <div className="search-select-wrap">
-            <label htmlFor="filter-year" className="visually-hidden">
-              سنة الإصدار
-            </label>
-            <select
-              id="filter-year"
-              value={initialYear}
-              onChange={(e) => updateFilters({ year: e.target.value })}
-              className="search-select"
-            >
-              <option value="all">كل السنوات</option>
-              <option value="2020s">عقد 2020s</option>
-              <option value="2010s">عقد 2010s</option>
-              <option value="2000s">عقد 2000s</option>
-              {availableYears.map((yr) => (
-                <option key={yr} value={String(yr)}>
-                  عام {yr}
-                </option>
-              ))}
-            </select>
-          </div>
-
-          {/* Age Rating Filter */}
-          {availableAgeRatings.length > 0 && (
-            <div className="search-select-wrap">
-              <label htmlFor="filter-age" className="visually-hidden">
-                الفئة العمرية
-              </label>
-              <select
-                id="filter-age"
-                value={initialAgeRating}
-                onChange={(e) => updateFilters({ ageRating: e.target.value })}
-                className="search-select"
-              >
-                <option value="all">كل الأعمار</option>
-                {availableAgeRatings.map((age) => (
-                  <option key={age} value={age}>
-                    {age}
-                  </option>
-                ))}
-              </select>
-            </div>
-          )}
-
-          {/* Minimum Rating Filter */}
-          <div className="search-select-wrap">
-            <label htmlFor="filter-min-rating" className="visually-hidden">
-              التقييم
-            </label>
-            <select
-              id="filter-min-rating"
-              value={String(initialMinRating)}
-              onChange={(e) => updateFilters({ minRating: Number(e.target.value) })}
-              className="search-select"
-            >
-              <option value="0">كل التقييمات</option>
-              <option value="7">⭐ 7.0 فما فوق</option>
-              <option value="8">⭐ 8.0 فما فوق (ممتاز)</option>
-              <option value="9">⭐ 9.0 فما فوق (تحفة)</option>
-            </select>
-          </div>
-        </div>
-
-        {/* Sorting Dropdown */}
-        <div className="search-sort-group">
-          <label htmlFor="filter-sort" className="search-sort-label">
-            الترتيب:
-          </label>
-          <select
-            id="filter-sort"
-            value={initialSortBy}
-            onChange={(e) => updateFilters({ sortBy: e.target.value })}
-            className="search-select is-sort"
-          >
-            {SORT_OPTIONS.map((opt) => (
-              <option key={opt.value} value={opt.value}>
-                {opt.label}
-              </option>
-            ))}
-          </select>
-        </div>
-      </div>
-
-      {/* Active Filters Row with Reset Button */}
-      {hasActiveFilters && (
-        <div className="search-active-tags-row">
-          <span className="search-tags-label">التصفيات المطبقة:</span>
-
-          {initialQuery && (
-            <span className="search-tag-pill">
-              <span>البحث: &quot;{initialQuery}&quot;</span>
-              <button
-                type="button"
-                onClick={() => updateFilters({ q: "" })}
-                aria-label="إزالة نص البحث"
-              >
-                ×
-              </button>
-            </span>
-          )}
-
-          {initialFormat !== "all" && (
-            <span className="search-tag-pill">
-              <span>{initialFormat === "movie" ? "أفلام فقط" : "مسلسلات فقط"}</span>
-              <button
-                type="button"
-                onClick={() => updateFilters({ format: "all" })}
-                aria-label="إزالة فلتر النوع"
-              >
-                ×
-              </button>
-            </span>
-          )}
-
-          {initialCategory !== "all" && (
-            <span className="search-tag-pill">
-              <span>
-                {CATEGORIES.find((c) => c.slug === initialCategory)?.label || initialCategory}
-              </span>
-              <button
-                type="button"
-                onClick={() => updateFilters({ category: "all" })}
-                aria-label="إزالة فلتر التصنيف"
-              >
-                ×
-              </button>
-            </span>
-          )}
-
-          {initialYear !== "all" && (
-            <span className="search-tag-pill">
-              <span>سنة {initialYear}</span>
-              <button
-                type="button"
-                onClick={() => updateFilters({ year: "all" })}
-                aria-label="إزالة فلتر السنة"
-              >
-                ×
-              </button>
-            </span>
-          )}
-
-          {initialAgeRating !== "all" && (
-            <span className="search-tag-pill">
-              <span>عمر {initialAgeRating}</span>
-              <button
-                type="button"
-                onClick={() => updateFilters({ ageRating: "all" })}
-                aria-label="إزالة فلتر العمر"
-              >
-                ×
-              </button>
-            </span>
-          )}
-
-          {initialMinRating > 0 && (
-            <span className="search-tag-pill">
-              <span>تقييم {initialMinRating}+</span>
-              <button
-                type="button"
-                onClick={() => updateFilters({ minRating: 0 })}
-                aria-label="إزالة فلتر التقييم"
-              >
-                ×
-              </button>
-            </span>
-          )}
-
-          <button
-            type="button"
-            className="search-reset-all-btn"
-            onClick={handleResetAll}
-          >
-            مسح كل التصفيات
-          </button>
-        </div>
-      )}
-
-      {/* Loading Overlay State during transition */}
-      <div className={`search-results-area ${isPending ? "is-loading" : ""}`}>
+      {/* Results Section */}
+      <div className="search-results-area">
         {error ? (
           <div className="public-state-box is-error" role="alert">
             <p>{error}</p>
+          </div>
+        ) : filteredMovies.length === 0 ? (
+          <div className="search-empty-state" role="status">
+            <div className="search-empty-icon">
+              <Icon name="search" size={38} />
+            </div>
+            <h3>لم نجد نتائج مطابقة</h3>
+            <p>
+              {query.trim()
+                ? `لا توجد نتائج تطابق "${query.trim()}". جرب كتابة اسم آخر أو تغيير الفلتر المحدد.`
+                : "لا توجد أعمال ضمن هذا الفلتر حالياً."}
+            </p>
             <button
               type="button"
               className="primary-button"
-              style={{ marginTop: "14px" }}
-              onClick={handleResetAll}
+              style={{ marginTop: "8px" }}
+              onClick={handleReset}
             >
-              إعادة تعيين البحث
+              <span>عرض كل الأعمال ({allItems.length})</span>
             </button>
           </div>
-        ) : initialItems.length === 0 ? (
-          /* Empty State */
-          <div className="search-empty-state" role="status">
-            <div className="search-empty-icon">
-              <Icon name="search" size={44} />
-            </div>
-            <h3>لم نجد أي حكايات مطابقة لبحثك</h3>
-            <p>
-              {initialQuery
-                ? `لم يتم العثور على نتائج تطابق "${initialQuery}". جرب كتابة كلمة أخرى أو إزالة بعض خيارات التصفية.`
-                : "لا توجد نتائج مطابقة لهذه الخيارات المحددة. جرب تغيير التصنيف أو السنة."}
-            </p>
-            {hasActiveFilters && (
-              <button
-                type="button"
-                className="primary-button"
-                style={{ marginTop: "12px" }}
-                onClick={handleResetAll}
-              >
-                إظهار كل الأعمال المتوفرة
-              </button>
-            )}
-          </div>
         ) : (
-          /* Results Grid */
           <>
             <div className="search-results-summary">
-              <span>
-                تم العثور على <strong>{totalCount}</strong> {totalCount === 1 ? "عمل كرتوني" : "أعمال كرتونية"}
-              </span>
+              {query.trim() ? (
+                <span>
+                  نتائج البحث عن <strong>&quot;{query.trim()}&quot;</strong> ({filteredMovies.length})
+                </span>
+              ) : (
+                <span>
+                  {activeFilter === "all"
+                    ? `أحدث الإضافات في المكتبة (${filteredMovies.length})`
+                    : `عدد الأعمال المعروضة (${filteredMovies.length})`}
+                </span>
+              )}
             </div>
 
-            <div className="search-cards-grid">
-              {initialItems.map((movie) => (
-                <MovieCard key={`${movie.format}-${movie.id}`} movie={movie} />
+            <div className="search-cards-grid is-modern-grid">
+              {visibleMovies.map((movie) => (
+                <MovieCard
+                  key={`${movie.format}-${movie.id}`}
+                  movie={movie}
+                  isSaved={savedIds.includes(movie.id)}
+                  onToggleSave={toggleSave}
+                />
               ))}
             </div>
 
-            {/* Pagination Controls */}
-            {totalPages > 1 && (
-              <nav className="search-pagination-nav" aria-label="صفحات نتائج البحث">
+            {hasMore && (
+              <div className="search-load-more-wrap">
                 <button
                   type="button"
-                  disabled={currentPage <= 1 || isPending}
-                  onClick={() => updateFilters({ page: currentPage - 1 })}
-                  className="search-page-btn"
-                  aria-label="الصفحة السابقة"
+                  className="search-load-more-btn"
+                  onClick={() => setVisibleCount((prev) => prev + PAGE_STEP)}
                 >
-                  <Icon name="arrow" size={16} />
-                  <span>السابق</span>
+                  <span>
+                    عرض المزيد ({filteredMovies.length - visibleCount} متبقي)
+                  </span>
                 </button>
-
-                <div className="search-page-numbers">
-                  {Array.from({ length: totalPages }, (_, idx) => idx + 1).map((pg) => {
-                    const isCurr = pg === currentPage;
-                    return (
-                      <button
-                        key={pg}
-                        type="button"
-                        aria-current={isCurr ? "page" : undefined}
-                        disabled={isPending}
-                        className={`search-page-num ${isCurr ? "is-active" : ""}`}
-                        onClick={() => updateFilters({ page: pg })}
-                      >
-                        {pg}
-                      </button>
-                    );
-                  })}
-                </div>
-
-                <button
-                  type="button"
-                  disabled={currentPage >= totalPages || isPending}
-                  onClick={() => updateFilters({ page: currentPage + 1 })}
-                  className="search-page-btn is-next"
-                  aria-label="الصفحة التالية"
-                >
-                  <span>التالي</span>
-                  <Icon name="arrow" size={16} />
-                </button>
-              </nav>
+              </div>
             )}
           </>
         )}
