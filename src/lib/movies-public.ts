@@ -455,6 +455,7 @@ export async function getPublicHomepageSections(
   error?: string;
   heroSlides: Movie[];
   sections: HomepageSectionConfig[];
+  allMovies: Movie[];
 }> {
   const catalog = await getPublicPublishedCatalog();
   const sectionsConfig = customSectionsConfig ?? DEFAULT_HOMEPAGE_SECTIONS;
@@ -475,7 +476,7 @@ export async function getPublicHomepageSections(
     featured.length ? 8 : 5
   );
 
-  const editorsPicks = catalog.movies
+  const manualEditorsPicks = catalog.movies
     .filter((item) => Boolean((item.metadata as any)?.is_editors_pick))
     .sort((a, b) => {
       const orderA =
@@ -489,12 +490,42 @@ export async function getPublicHomepageSections(
       return orderA - orderB;
     });
 
+  const editorsPicks =
+    manualEditorsPicks.length > 0
+      ? manualEditorsPicks
+      : featured.length > 0
+      ? featured
+      : catalog.movies.slice(0, 8);
+
+  // Smart fallback for "recently-added": combine flagged items with latest published entries
+  const manualRecent = catalog.movies.filter((item) => item.recentlyAdded);
+  const recentlyAdded =
+    manualRecent.length >= 4
+      ? manualRecent
+      : [
+          ...manualRecent,
+          ...catalog.movies.filter((item) => !manualRecent.some((m) => m.id === item.id)),
+        ].slice(0, 12);
+
+  // Smart fallback for "most-watched": combine flagged items with highest-rated entries
+  const manualMostWatched = catalog.movies.filter((item) => item.mostWatched);
+  const sortedByRating = [...catalog.movies].sort(
+    (a, b) => Number.parseFloat(b.rating || "0") - Number.parseFloat(a.rating || "0")
+  );
+  const mostWatched =
+    manualMostWatched.length >= 4
+      ? manualMostWatched
+      : [
+          ...manualMostWatched,
+          ...sortedByRating.filter((item) => !manualMostWatched.some((m) => m.id === item.id)),
+        ].slice(0, 12);
+
   const sectionItemsMap: Record<string, Movie[]> = {
     "editors-picks": editorsPicks,
-    "recently-added": catalog.movies.filter((item) => item.recentlyAdded),
+    "recently-added": recentlyAdded,
     "cartoon-movies": catalog.movies.filter((item) => item.format === "movie"),
     "cartoon-series": catalog.movies.filter((item) => item.format === "series"),
-    "most-watched": catalog.movies.filter((item) => item.mostWatched),
+    "most-watched": mostWatched,
   };
 
   const sections: HomepageSectionConfig[] = [...sectionsConfig]
@@ -514,5 +545,6 @@ export async function getPublicHomepageSections(
     error: catalog.error,
     heroSlides,
     sections,
+    allMovies: catalog.movies,
   };
 }

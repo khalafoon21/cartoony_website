@@ -2,9 +2,33 @@
 
 import Image from "next/image";
 import Link from "next/link";
+import { usePathname } from "next/navigation";
+import { useCallback } from "react";
 import { Icon } from "@/components/icon";
+import { useWatchlist } from "@/lib/use-watchlist";
 
 export function MobileHeader() {
+  const pathname = usePathname();
+  const { savedIds } = useWatchlist();
+
+  const handleSavedClick = useCallback(
+    (e: React.MouseEvent<HTMLAnchorElement>) => {
+      if (pathname === "/") {
+        const target = document.getElementById("saved");
+        if (target) {
+          e.preventDefault();
+          const prefersReduced = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+          target.scrollIntoView({
+            behavior: prefersReduced ? "instant" : "smooth",
+            block: "start",
+          });
+          window.history.pushState(null, "", "#saved");
+        }
+      }
+    },
+    [pathname]
+  );
+
   return (
     <header className="mobile-app-header" aria-label="ترويسة الموقع للهواتف">
       <div className="mobile-header-inner">
@@ -27,21 +51,29 @@ export function MobileHeader() {
           </div>
         </Link>
 
-        {/* Quick Actions (Search & Movies) */}
+        {/* Quick Search Pill & Watchlist Button (No duplicate Movies icon) */}
         <div className="mobile-header-actions">
           <Link
             href="/search"
-            className="mobile-header-action-btn"
+            className="mobile-header-search-pill"
             aria-label="البحث الذكي في كارتوني"
           >
-            <Icon name="search" size={19} />
+            <Icon name="search" size={16} />
+            <span>ابحث...</span>
           </Link>
+
           <Link
-            href="/movies"
-            className="mobile-header-action-btn is-explore"
-            aria-label="تصفح كافة الأفلام"
+            href="/#saved"
+            onClick={handleSavedClick}
+            className={`mobile-header-action-btn is-watchlist ${
+              savedIds.length > 0 ? "has-items" : ""
+            }`}
+            aria-label={`قائمتي المفضلة (${savedIds.length})`}
           >
-            <Icon name="film" size={19} />
+            <Icon name={savedIds.length > 0 ? "heartFilled" : "heart"} size={18} />
+            {savedIds.length > 0 && (
+              <span className="mobile-header-badge">{savedIds.length}</span>
+            )}
           </Link>
         </div>
       </div>

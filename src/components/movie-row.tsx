@@ -13,8 +13,12 @@ export type MovieRowProps = {
   subtitle?: string;
   movies: Movie[];
   savedIds?: string[];
+  onToggleSave?: (id: string) => void;
   featuredId?: string;
   viewAllHref?: string;
+  viewAllLabel?: string;
+  badgeCount?: number;
+  onClearAll?: () => void;
   emptyMessage?: string;
   errorMessage?: string;
 };
@@ -26,8 +30,12 @@ export function MovieRow({
   subtitle,
   movies,
   savedIds = [],
+  onToggleSave,
   featuredId,
   viewAllHref,
+  viewAllLabel = "عرض الكل",
+  badgeCount,
+  onClearAll,
   emptyMessage = "لا توجد عروض منشورة في هذا القسم حالياً.",
   errorMessage,
 }: MovieRowProps) {
@@ -86,17 +94,33 @@ export function MovieRow({
       <div className="section-heading movie-row-header">
         <div>
           <span className="eyebrow">{eyebrow}</span>
-          <h2 id={headingId}>
-            {title}
-            <span>.</span>
-          </h2>
+          <div className="movie-row-title-wrap">
+            <h2 id={headingId}>
+              {title}
+              <span>.</span>
+            </h2>
+            {typeof badgeCount === "number" && badgeCount > 0 && (
+              <span className="movie-row-count-pill">{badgeCount}</span>
+            )}
+          </div>
           {subtitle && <p className="section-note">{subtitle}</p>}
         </div>
 
         <div className="movie-row-controls" role="group" aria-label={`تحريك قسم ${title}`}>
+          {onClearAll && movies.length > 0 && (
+            <button
+              type="button"
+              className="text-button is-subtle"
+              onClick={onClearAll}
+              aria-label="مسح القائمة المحفوظة"
+            >
+              <Icon name="trash" size={13} />
+              <span>مسح الكل</span>
+            </button>
+          )}
           {viewAllHref && (
             <Link href={viewAllHref} className="text-button">
-              <span>كل الأفلام</span>
+              <span>{viewAllLabel}</span>
               <Icon name="arrow" size={14} />
             </Link>
           )}
@@ -140,6 +164,7 @@ export function MovieRow({
                 movie={movie}
                 isSelected={featuredId === movie.id}
                 isSaved={savedIds.includes(movie.id)}
+                onToggleSave={onToggleSave}
               />
             </li>
           ))}

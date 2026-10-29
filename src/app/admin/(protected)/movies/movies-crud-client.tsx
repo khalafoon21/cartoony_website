@@ -10,6 +10,7 @@ import {
   toggleMoviePublishStatusAction,
 } from "./actions";
 import { AdminDataOriginBadge } from "@/components/admin-dashboard-widgets";
+import { AdminTmdbImportModal } from "@/components/admin-tmdb-import-modal";
 import { AdminVideoSourceManager } from "@/components/admin-video-source-manager";
 import { Icon } from "@/components/icon";
 import type { VideoServer } from "@/lib/video-helpers";
@@ -183,6 +184,7 @@ export function MoviesCrudClient({
   const [statusFilter, setStatusFilter] = useState<StatusFilter>("all");
 
   const [isFormOpen, setIsFormOpen] = useState(false);
+  const [isTmdbModalOpen, setIsTmdbModalOpen] = useState(false);
   const [formValues, setFormValues] = useState<FormValues>(EMPTY_FORM);
 
   const [posterUpload, setPosterUpload] =
@@ -1287,14 +1289,24 @@ export function MoviesCrudClient({
             </p>
           </div>
 
-          <button
-            type="button"
-            onClick={openCreateForm}
-            className="admin-crud-action-btn is-enabled"
-          >
-            <Icon name="plus" size={16} />
-            <span>إضافة فيلم جديد</span>
-          </button>
+          <div className="admin-header-actions-group">
+            <button
+              type="button"
+              onClick={() => setIsTmdbModalOpen(true)}
+              className="admin-crud-action-btn tmdb-import-trigger-btn"
+            >
+              <span className="tmdb-pill-icon">TMDB</span>
+              <span>استيراد من TMDB</span>
+            </button>
+            <button
+              type="button"
+              onClick={openCreateForm}
+              className="admin-crud-action-btn is-enabled"
+            >
+              <Icon name="plus" size={16} />
+              <span>إضافة فيلم جديد</span>
+            </button>
+          </div>
         </header>
 
         {/* Search & Status Filters Bar */}
@@ -1524,6 +1536,22 @@ export function MoviesCrudClient({
           </div>
         </div>
       </dialog>
+
+      {/* TMDB Smart Content Import Modal */}
+      <AdminTmdbImportModal
+        isOpen={isTmdbModalOpen}
+        onClose={() => setIsTmdbModalOpen(false)}
+        defaultMediaType="movie"
+        categories={categories}
+        onSuccess={(importedId) => {
+          router.refresh();
+          // Find and open the imported movie if present
+          const found = initialMovies.find((m) => m.id === importedId);
+          if (found) {
+            openEditForm(found);
+          }
+        }}
+      />
     </div>
   );
 }

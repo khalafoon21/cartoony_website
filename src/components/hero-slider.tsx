@@ -104,12 +104,17 @@ export function HeroSlider({
     return (
       <section className="hero hero-empty" id="home" aria-labelledby="hero-title">
         <div className="hero-art-stack" aria-hidden="true">
-          <div className="hero-art is-active"><PublishedArtwork className="hero-real-backdrop" /></div>
+          <div className="hero-art is-active">
+            <PublishedArtwork className="hero-real-backdrop" />
+          </div>
         </div>
         <div className="hero-content">
           <p className="eyebrow">أهلاً بك في كارتوني</p>
           <h1 id="hero-title">لكل حكاية عالم</h1>
-          <div className={`hero-empty-message ${errorMessage ? "is-error" : ""}`} role={errorMessage ? "alert" : "status"}>
+          <div
+            className={`hero-empty-message ${errorMessage ? "is-error" : ""}`}
+            role={errorMessage ? "alert" : "status"}
+          >
             <p>{errorMessage ? "تعذّر تحميل الحكايات الآن" : "لا توجد حكايات منشورة حالياً"}</p>
             <span>{errorMessage || "تظهر الحكايات هنا عند نشرها."}</span>
           </div>
@@ -119,7 +124,7 @@ export function HeroSlider({
   }
 
   const watchHref =
-    movie?.format === "series"
+    movie.format === "series"
       ? `/watch/series/${movie.slug}`
       : `/watch/movies/${movie.slug}`;
   const detailsHref = getContentHref(movie);
@@ -130,7 +135,12 @@ export function HeroSlider({
       aria-labelledby="hero-title"
       aria-roledescription="carousel"
       id="home"
-      style={{ "--theme-accent": movie.accent } as CSSProperties}
+      style={
+        {
+          "--theme-accent": movie.accent,
+          "--autoplay-ms": `${autoPlayMs}ms`,
+        } as CSSProperties
+      }
       onMouseEnter={() => setIsPaused(true)}
       onMouseLeave={() => setIsPaused(false)}
       onFocusCapture={() => setIsPaused(true)}
@@ -147,10 +157,7 @@ export function HeroSlider({
         {slides.map((slide, index) => {
           const isActive = index === safeIndex;
           return (
-            <div
-              key={slide.id}
-              className={`hero-art ${isActive ? "is-active" : ""}`}
-            >
+            <div key={slide.id} className={`hero-art ${isActive ? "is-active" : ""}`}>
               <PublishedArtwork
                 src={slide.backdropUrl || slide.posterUrl}
                 className="hero-real-backdrop"
@@ -166,43 +173,69 @@ export function HeroSlider({
         key={movie.id}
         aria-live={isPaused ? "polite" : "off"}
       >
+        <div className="hero-top-badges hero-stagger" style={{ "--step": 0 } as CSSProperties}>
+          <span className="hero-format-badge">
+            <Icon name={movie.format === "series" ? "tv" : "film"} size={13} />
+            <span>{movie.format === "series" ? "مسلسل كرتوني" : "فيلم سينمائي"}</span>
+          </span>
+          {movie.audioBadge && (
+            <span
+              className={`hero-audio-pill ${
+                movie.audioBadge === "مدبلج" ? "is-dubbed" : "is-subtitled"
+              }`}
+            >
+              {movie.audioBadge}
+            </span>
+          )}
+          {movie.rating && (
+            <span className="hero-rating-chip" aria-label={`التقييم ${movie.rating}`}>
+              <Icon name="star" size={13} />
+              <b dir="ltr">{movie.rating}</b>
+            </span>
+          )}
+        </div>
+
         {movie.englishTitle && (
-          <p className="hero-english hero-stagger" dir="ltr" style={{ "--step": 0 } as CSSProperties}>
+          <p className="hero-english hero-stagger" dir="ltr" style={{ "--step": 1 } as CSSProperties}>
             {movie.englishTitle}
           </p>
         )}
 
-        <h1 id="hero-title" className="hero-stagger" style={{ "--step": 1 } as CSSProperties}>
+        <h1 id="hero-title" className="hero-stagger" style={{ "--step": 2 } as CSSProperties}>
           {movie.title}
         </h1>
 
         {movie.subtitle && (
-          <p className="hero-subtitle hero-stagger" style={{ "--step": 2 } as CSSProperties}>
+          <p className="hero-subtitle hero-stagger" style={{ "--step": 3 } as CSSProperties}>
             {movie.subtitle}
           </p>
         )}
 
-        <div className="movie-meta hero-stagger" style={{ "--step": 3 } as CSSProperties}>
+        <div className="movie-meta hero-stagger" style={{ "--step": 4 } as CSSProperties}>
           {Boolean(movie.year) && <span className="meta-pill">{movie.year}</span>}
           {movie.categoryLabel && <span className="meta-pill is-category">{movie.categoryLabel}</span>}
-          {movie.duration && <span>{movie.duration}</span>}
-          {movie.ageRating && <span className="age-badge" dir="ltr">{movie.ageRating}</span>}
+          {movie.duration && <span className="meta-pill is-duration">{movie.duration}</span>}
+          {movie.ageRating && (
+            <span className="age-badge" dir="ltr">
+              {movie.ageRating}
+            </span>
+          )}
         </div>
 
         {movie.description && (
-          <p className="hero-description hero-stagger" style={{ "--step": 4 } as CSSProperties}>
+          <p className="hero-description hero-stagger" style={{ "--step": 5 } as CSSProperties}>
             {movie.description}
           </p>
         )}
 
-        <div className="hero-actions hero-stagger" style={{ "--step": 5 } as CSSProperties}>
+        <div className="hero-actions hero-stagger" style={{ "--step": 6 } as CSSProperties}>
           <Link
             className="primary-button is-watch-now"
             href={watchHref}
             aria-label={`مشاهدة الآن: ${movie.title}`}
           >
             <span className="play-icon-wrap">
-              <Icon name="play" size={20} />
+              <Icon name="play" size={19} />
             </span>
             <span>مشاهدة الآن</span>
           </Link>
@@ -212,7 +245,7 @@ export function HeroSlider({
             href={detailsHref}
             aria-label={`تفاصيل: ${movie.title}`}
           >
-            <Icon name="sparkles" size={17} />
+            <Icon name="sparkles" size={16} />
             <span>التفاصيل</span>
           </Link>
 
@@ -222,67 +255,64 @@ export function HeroSlider({
             aria-label={isSaved ? "إزالة الحكاية من قائمتي" : "إضافة الحكاية إلى قائمتي"}
             aria-pressed={isSaved}
             onClick={() => onToggleSave(movie.id)}
+            title={isSaved ? "محفوظة في قائمتي" : "حفظ في قائمتي"}
           >
-            <Icon name={isSaved ? "check" : "plus"} />
+            <Icon name={isSaved ? "heartFilled" : "heart"} size={20} />
           </button>
 
           <span className={`save-status ${isSaved ? "is-visible" : ""}`} role="status">
-            {isSaved ? "✦ أُضيفت إلى قائمتك لهذه الجلسة" : ""}
+            {isSaved ? "✦ محفوظة في قائمتك المفضلة" : ""}
           </span>
         </div>
-
-        {movie.rating && (
-          <div className="hero-footnote hero-stagger" style={{ "--step": 6 } as CSSProperties}>
-            <span className="rating">
-              <Icon name="star" size={15} />
-              <b dir="ltr">{movie.rating}</b>
-            </span>
-          </div>
-        )}
       </div>
 
-      {count > 1 && <div className="hero-pagination" role="group" aria-label="التنقل بين الحكايات المميزة">
-        <span className="slide-count" dir="ltr">
-          <b>{String(safeIndex + 1).padStart(2, "0")}</b> / {String(count).padStart(2, "0")}
-        </span>
+      {count > 1 && (
+        <div className="hero-pagination" role="group" aria-label="التنقل بين الحكايات المميزة">
+          <span className="slide-count" dir="ltr">
+            <b>{String(safeIndex + 1).padStart(2, "0")}</b> / {String(count).padStart(2, "0")}
+          </span>
 
-        <div className="hero-indicators">
-          {slides.map((item, i) => {
-            const isActive = i === safeIndex;
-            return (
-              <button
-                key={item.id}
-                type="button"
-                aria-label={`عرض ${item.title}`}
-                aria-pressed={isActive}
-                className={`hero-indicator-btn ${isActive ? "active" : ""}`}
-                onClick={() => onSelectSlide(i)}
-              />
-            );
-          })}
+          <div className="hero-indicators">
+            {slides.map((item, i) => {
+              const isActive = i === safeIndex;
+              return (
+                <button
+                  key={item.id}
+                  type="button"
+                  aria-label={`عرض ${item.title}`}
+                  aria-pressed={isActive}
+                  title={item.title}
+                  className={`hero-indicator-btn ${isActive ? "active" : ""} ${
+                    isPaused ? "is-paused" : ""
+                  }`}
+                  onClick={() => onSelectSlide(i)}
+                />
+              );
+            })}
+          </div>
+
+          <span className="pagination-line" aria-hidden="true" />
+
+          <div className="hero-nav-arrows">
+            <button
+              type="button"
+              className="hero-arrow-btn"
+              onClick={handlePrev}
+              aria-label="الحكاية السابقة"
+            >
+              <Icon name="arrow" size={15} style={{ rotate: "180deg" }} />
+            </button>
+            <button
+              type="button"
+              className="hero-arrow-btn"
+              onClick={handleNext}
+              aria-label="الحكاية التالية"
+            >
+              <Icon name="arrow" size={15} />
+            </button>
+          </div>
         </div>
-
-        <span className="pagination-line" aria-hidden="true" />
-
-        <div className="hero-nav-arrows">
-          <button
-            type="button"
-            className="hero-arrow-btn"
-            onClick={handlePrev}
-            aria-label="الحكاية السابقة"
-          >
-            <Icon name="arrow" size={15} style={{ rotate: "180deg" }} />
-          </button>
-          <button
-            type="button"
-            className="hero-arrow-btn"
-            onClick={handleNext}
-            aria-label="الحكاية التالية"
-          >
-            <Icon name="arrow" size={15} />
-          </button>
-        </div>
-      </div>}
+      )}
     </section>
   );
 }

@@ -5,6 +5,7 @@ import Link from "next/link";
 import { Icon } from "@/components/icon";
 import { MovieRow } from "@/components/movie-row";
 import { VideoPlayer } from "@/components/video-player";
+import { useWatchlist } from "@/lib/use-watchlist";
 import type { Movie } from "@/lib/movies";
 import type { PublicEpisode, PublicSeason } from "@/lib/movies-public";
 
@@ -27,7 +28,12 @@ export function EpisodeWatchView({
   nextEpisode,
   related,
 }: EpisodeWatchViewProps) {
+  const { savedIds, toggleSave } = useWatchlist();
   const [selectedSeasonId, setSelectedSeasonId] = useState<string>(currentSeason.id);
+  const [copiedLink, setCopiedLink] = useState(false);
+
+  const saved = savedIds.includes(series.id);
+  const isDubbed = (currentEpisode.audioBadge || series.audioBadge || "").includes("مدبلج");
 
   const activeSeason =
     seasons.find((s) => s.id === selectedSeasonId) ?? currentSeason;
@@ -35,26 +41,69 @@ export function EpisodeWatchView({
   const playerPoster =
     currentEpisode.stillUrl || series.backdropUrl || series.posterUrl;
 
+  const handleShare = async () => {
+    try {
+      const url = window.location.href;
+      if (navigator.share) {
+        await navigator.share({
+          title: `مشاهدة ${series.title} - ${currentEpisode.title} | كارتوني`,
+          text: currentEpisode.description || series.description,
+          url,
+        });
+        return;
+      }
+      await navigator.clipboard.writeText(url);
+      setCopiedLink(true);
+      setTimeout(() => setCopiedLink(false), 2200);
+    } catch {
+      // Ignore share cancellation
+    }
+  };
+
   return (
     <div className="watch-page-container">
-      {/* Top Navigation Bar */}
+      {/* Lightweight Top Navigation Row */}
       <div className="watch-top-nav">
-        <Link href={`/series/${series.slug}`} className="watch-back-link">
-          <Icon name="arrow" size={18} />
-          <span>العودة لصفحة المسلسل</span>
-        </Link>
-        <div className="watch-breadcrumb">
-          <Link href="/series">المسلسلات</Link>
-          <span className="meta-dot" />
-          <Link href={`/series/${series.slug}`}>{series.title}</Link>
-          <span className="meta-dot" />
-          <span>{currentSeason.title}</span>
-          <span className="meta-dot" />
-          <span className="current">{currentEpisode.title}</span>
+        <div className="watch-top-start">
+          <Link href={`/series/${series.slug}`} className="watch-back-link">
+            <Icon name="arrow" size={16} />
+            <span>العودة لصفحة المسلسل</span>
+          </Link>
+          <div className="watch-breadcrumb" aria-label="مسار الصفحة">
+            <Link href="/series">المسلسلات</Link>
+            <span className="meta-dot" />
+            <Link href={`/series/${series.slug}`}>{series.title}</Link>
+            <span className="meta-dot" />
+            <span>{currentSeason.title}</span>
+            <span className="meta-dot" />
+            <span className="current">{currentEpisode.title}</span>
+          </div>
+        </div>
+
+        <div className="watch-top-actions">
+          <button
+            type="button"
+            className={`watch-action-pill ${saved ? "is-saved" : ""}`}
+            onClick={() => toggleSave(series.id)}
+            aria-pressed={saved}
+          >
+            <Icon name={saved ? "heartFilled" : "heart"} size={14} />
+            <span>{saved ? "في قائمتي" : "حفظ المسلسل"}</span>
+          </button>
+
+          <button
+            type="button"
+            className="watch-action-pill"
+            onClick={handleShare}
+            title="مشاركة رابط الحلقة"
+          >
+            <Icon name={copiedLink ? "check" : "share"} size={14} />
+            <span>{copiedLink ? "تم النسخ" : "مشاركة"}</span>
+          </button>
         </div>
       </div>
 
-      {/* Video Player or Friendly Unavailable State */}
+      {/* Clean Video Player Frame */}
       <div className="watch-player-frame">
         {currentEpisode.videoUrl ? (
           <VideoPlayer
@@ -153,37 +202,54 @@ export function EpisodeWatchView({
 
       {/* Episode Info Section */}
       <section className="watch-info-section" aria-labelledby="watch-episode-title">
-        <div className="watch-info-header">
-          <div>
-            <p className="hero-english" dir="ltr">
-              {currentEpisode.originalTitle || series.englishTitle}
-            </p>
-            <h1 id="watch-episode-title" className="watch-title">
-              {series.title}: {currentEpisode.title}
-            </h1>
-            <p className="watch-subtitle">
-              {currentSeason.title} — الحلقة {currentEpisode.episodeNumber}
-            </p>
-          </div>
+        <div className="watch-info-layout">
+          {series.posterUrl && (
+            <Link
+              href={`/series/${series.slug}`}
+              className="watch-info-poster"
+              aria-label={`عرض صفحة ${series.title}`}
+            >
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img src={series.posterUrl} alt={series.title} loading="lazy" />
+            </Link>
+          )}
 
-          <div className="watch-badges-row">
-            <span className="meta-pill">{currentEpisode.durationLabel}</span>
-            <span className="meta-dot" />
-            <span className="meta-pill">{currentEpisode.audioBadge}</span>
-            {series.ageRating && (
-              <>
-                <span className="meta-dot" />
-                <span className="age-badge" dir="ltr">
-                  {series.ageRating}
+          <div className="watch-info-body">
+            <div className="watch-info-header">
+              <div className="watch-title-group">
+                <p className="hero-english" dir="ltr">
+                  {currentEpisode.originalTitle || series.englishTitle}
+                </p>
+                <h1 id="watch-episode-title" className="watch-title">
+                  {series.title}: {currentEpisode.title}
+                </h1>
+                <p className="watch-subtitle">
+                  {currentSeason.title} — الحلقة {currentEpisode.episodeNumber}
+                </p>
+              </div>
+
+              <div className="watch-badges-row">
+                <span className={`hero-audio-pill ${isDubbed ? "is-dubbed" : "is-subtitled"}`}>
+                  {currentEpisode.audioBadge}
                 </span>
-              </>
+                {currentEpisode.durationLabel && (
+                  <span className="meta-pill">{currentEpisode.durationLabel}</span>
+                )}
+                {series.ageRating && (
+                  <span className="age-badge" dir="ltr">
+                    {series.ageRating}
+                  </span>
+                )}
+              </div>
+            </div>
+
+            {(currentEpisode.description || series.description) && (
+              <p className="watch-description">
+                {currentEpisode.description || series.description}
+              </p>
             )}
           </div>
         </div>
-
-        {currentEpisode.description && (
-          <p className="watch-description">{currentEpisode.description}</p>
-        )}
       </section>
 
       {/* Season & Episode Switcher Drawer */}
@@ -224,6 +290,7 @@ export function EpisodeWatchView({
         <div className="watch-episodes-strip">
           {activeSeason.episodes.map((ep) => {
             const isCurrent = ep.id === currentEpisode.id;
+            const epIsDubbed = (ep.audioBadge || "").includes("مدبلج");
             return (
               <Link
                 key={ep.id}
@@ -241,14 +308,16 @@ export function EpisodeWatchView({
                     </div>
                   )}
                   <span className="watch-ep-badge">حلقة {ep.episodeNumber}</span>
-                  {isCurrent && <span className="watch-ep-now-playing">تشاهد الآن</span>}
+                  {isCurrent && <span className="watch-ep-now-playing">▶ تشاهد الآن</span>}
                 </div>
                 <div className="watch-ep-card-meta">
                   <h4>{ep.title}</h4>
                   <div className="watch-ep-subline">
                     <span>{ep.durationLabel}</span>
                     <span className="meta-dot" />
-                    <span>{ep.audioBadge}</span>
+                    <span className={`watch-ep-audio-tag ${epIsDubbed ? "is-dubbed" : "is-subtitled"}`}>
+                      {ep.audioBadge}
+                    </span>
                   </div>
                 </div>
               </Link>
@@ -265,6 +334,8 @@ export function EpisodeWatchView({
             title="أعمال أخرى قد تعجبك"
             eyebrow="مزيد من الحكايات"
             movies={related}
+            savedIds={savedIds}
+            onToggleSave={toggleSave}
           />
         </section>
       )}

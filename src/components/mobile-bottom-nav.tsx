@@ -3,21 +3,22 @@
 import { useCallback, useEffect, useState } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { Icon, type IconName } from "./icon";
+import { useWatchlist } from "@/lib/use-watchlist";
+import { SpatialNavIcon, type SpatialNavIconName } from "./sidebar";
 
 interface MobileTabItem {
   id: string;
   label: string;
   href: string;
-  icon: IconName;
+  icon: SpatialNavIconName;
 }
 
 const mobileTabs: MobileTabItem[] = [
   { id: "home", label: "الرئيسية", href: "/", icon: "home" },
-  { id: "movies", label: "أفلام", href: "/movies", icon: "film" },
+  { id: "movies", label: "أفلام", href: "/movies", icon: "movies" },
   { id: "search", label: "البحث", href: "/search", icon: "search" },
-  { id: "series", label: "مسلسلات", href: "/series", icon: "sparkles" },
-  { id: "more", label: "المزيد", href: "#more", icon: "grid" },
+  { id: "series", label: "مسلسلات", href: "/series", icon: "series" },
+  { id: "more", label: "المزيد", href: "#more", icon: "more" },
 ];
 
 interface MoreDrawerItem {
@@ -25,32 +26,32 @@ interface MoreDrawerItem {
   label: string;
   subtitle: string;
   href: string;
-  icon: IconName;
+  icon: SpatialNavIconName;
   badge?: string;
 }
 
 const moreDrawerItems: MoreDrawerItem[] = [
   {
-    id: "franchises",
-    label: "عوالم كارتوني",
-    subtitle: "السلاسل والشخصيات المميزة",
-    href: "/#franchises",
-    icon: "sparkles",
-    badge: "حصري",
+    id: "saved",
+    label: "قائمتي المفضلة",
+    subtitle: "الأفلام والمسلسلات التي حفظتها",
+    href: "/#saved",
+    icon: "saved",
   },
   {
     id: "categories",
     label: "التصنيفات",
     subtitle: "تصفح حسب المزاج والأجواء",
     href: "/#categories",
-    icon: "grid",
+    icon: "categories",
   },
   {
-    id: "saved",
-    label: "قائمتي المفضلة",
-    subtitle: "حكاياتك المحفوظة لهذه الجلسة",
-    href: "/#stories",
-    icon: "heart",
+    id: "franchises",
+    label: "عوالم كارتوني",
+    subtitle: "السلاسل والشخصيات المميزة",
+    href: "/#franchises",
+    icon: "franchises",
+    badge: "حصري",
   },
 ];
 
@@ -58,6 +59,7 @@ export function MobileBottomNav() {
   const pathname = usePathname();
   const [activeTab, setActiveTab] = useState("home");
   const [isMoreOpen, setIsMoreOpen] = useState(false);
+  const { savedIds } = useWatchlist();
 
   useEffect(() => {
     if (pathname === "/") {
@@ -135,31 +137,42 @@ export function MobileBottomNav() {
           </button>
         </div>
         <div className="mobile-more-grid">
-          {moreDrawerItems.map((item) => (
-            <Link
-              key={item.id}
-              href={item.href}
-              className="mobile-more-item"
-              onClick={(e) => handleMoreItemClick(e, item)}
-            >
-              <div className="mobile-more-icon-box">
-                <Icon name={item.icon} size={20} />
-              </div>
-              <div className="mobile-more-text">
-                <div className="mobile-more-item-label">
-                  <span>{item.label}</span>
-                  {item.badge && <span className="mobile-more-badge">{item.badge}</span>}
+          {moreDrawerItems.map((item) => {
+            const isSavedItem = item.id === "saved";
+            const badge = isSavedItem
+              ? savedIds.length > 0
+                ? `${savedIds.length} محفوظ`
+                : undefined
+              : item.badge;
+            const iconName: SpatialNavIconName =
+              isSavedItem && savedIds.length > 0 ? "savedFilled" : item.icon;
+
+            return (
+              <Link
+                key={item.id}
+                href={item.href}
+                className="mobile-more-item"
+                onClick={(e) => handleMoreItemClick(e, item)}
+              >
+                <div className="mobile-more-icon-box">
+                  <SpatialNavIcon name={iconName} size={21} isActive />
                 </div>
-                <span className="mobile-more-item-subtitle">{item.subtitle}</span>
-              </div>
-            </Link>
-          ))}
+                <div className="mobile-more-text">
+                  <div className="mobile-more-item-label">
+                    <span>{item.label}</span>
+                    {badge && <span className="mobile-more-badge">{badge}</span>}
+                  </div>
+                  <span className="mobile-more-item-subtitle">{item.subtitle}</span>
+                </div>
+              </Link>
+            );
+          })}
         </div>
       </div>
 
-      {/* Fixed Bottom Navigation Bar */}
+      {/* Fixed Bottom Navigation Bar (iOS 27 Spatial Liquid Glass Island) */}
       <nav
-        className="mobile-bottom-nav"
+        className="mobile-bottom-nav is-ios27-island"
         aria-label="التنقل الرئيسي للهواتف"
       >
         <div className="mobile-bottom-nav-inner">
@@ -176,7 +189,10 @@ export function MobileBottomNav() {
               >
                 <span className="mobile-tab-indicator" aria-hidden="true" />
                 <span className="mobile-tab-icon-box">
-                  <Icon name={tab.icon} size={20} />
+                  <SpatialNavIcon name={tab.icon} size={21} isActive={isActive} />
+                  {tab.id === "more" && savedIds.length > 0 && (
+                    <span className="mobile-tab-dot" aria-hidden="true" />
+                  )}
                 </span>
                 <span className="mobile-tab-label">{tab.label}</span>
               </Link>

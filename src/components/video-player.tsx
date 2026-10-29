@@ -580,8 +580,6 @@ function NativeVideoPlayer({
           </div>
         )}
 
-        {/* Center play icon tap indicator (optional feedback) */}
-
         {/* Bottom bar */}
         <div className="cartoony-player-bottom-bar">
           {/* Progress / Timeline Bar */}
@@ -615,16 +613,36 @@ function NativeVideoPlayer({
           </div>
 
           <div className="cartoony-controls-row">
-            {/* Right group in RTL: Play, Volume, Time */}
+            {/* Right group in RTL: Play, Skip ±10s, Volume, Time */}
             <div className="cartoony-controls-group is-start">
               <button
                 type="button"
-                className="cartoony-control-btn"
+                className="cartoony-control-btn is-play-toggle"
                 onClick={togglePlay}
                 aria-label={activeIsPlaying ? "إيقاف مؤقت" : "تشغيل"}
                 title={activeIsPlaying ? "إيقاف مؤقت (Space)" : "تشغيل (Space)"}
               >
-                <Icon name={activeIsPlaying ? "close" : "play"} size={20} />
+                <Icon name={activeIsPlaying ? "pause" : "play"} size={20} />
+              </button>
+
+              <button
+                type="button"
+                className="cartoony-control-btn cartoony-skip-btn"
+                onClick={() => handleSeek(activeCurrentTime - 10)}
+                aria-label="إرجاع 10 ثوانٍ"
+                title="إرجاع 10 ثوانٍ"
+              >
+                <span>-10ث</span>
+              </button>
+
+              <button
+                type="button"
+                className="cartoony-control-btn cartoony-skip-btn"
+                onClick={() => handleSeek(activeCurrentTime + 10)}
+                aria-label="تقديم 10 ثوانٍ"
+                title="تقديم 10 ثوانٍ"
+              >
+                <span>+10ث</span>
               </button>
 
               {/* Volume & Mute */}
@@ -860,6 +878,25 @@ function NativeVideoPlayer({
                 </button>
               </div>
 
+              {/* Picture-in-Picture (PiP) button */}
+              <button
+                type="button"
+                className="cartoony-control-btn"
+                onClick={() => {
+                  const video = videoRef.current;
+                  if (!video) return;
+                  if (document.pictureInPictureElement) {
+                    document.exitPictureInPicture?.().catch(() => {});
+                  } else if (video.requestPictureInPicture) {
+                    video.requestPictureInPicture().catch(() => {});
+                  }
+                }}
+                aria-label="نافذة عائمة (PiP)"
+                title="نافذة عائمة (PiP)"
+              >
+                <Icon name="pip" size={18} />
+              </button>
+
               {/* Fullscreen button */}
               <button
                 type="button"
@@ -903,7 +940,7 @@ export function VideoPlayer({
       return [
         {
           id: "srv-default",
-          name: isEmbed ? "مشغل التضمين" : "السيرفر الأساسي",
+          name: isEmbed ? "السيرفر الأساسي" : "السيرفر الأساسي",
           url: src,
           type: (videoType || (isEmbed ? "iframe" : "direct")) as "direct" | "iframe",
         },
@@ -920,7 +957,10 @@ export function VideoPlayer({
     (isVideoEmbedUrl(activeUrl) ? "iframe" : "direct");
 
   return (
-    <div className={`cartoony-universal-player ${className}`}>
+    <div
+      className={`cartoony-universal-player ${className}`}
+      style={{ "--player-accent": accentColor } as React.CSSProperties}
+    >
       {serversList.length > 1 && (
         <div className="cartoony-servers-bar" role="tablist" aria-label="سيرفرات المشاهدة">
           <div className="cartoony-servers-tag">

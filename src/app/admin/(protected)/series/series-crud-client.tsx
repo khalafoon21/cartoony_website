@@ -16,6 +16,7 @@ import {
   toggleSeriesPublishStatusAction,
 } from "./actions";
 import { AdminDataOriginBadge } from "@/components/admin-dashboard-widgets";
+import { AdminTmdbImportModal } from "@/components/admin-tmdb-import-modal";
 import { AdminVideoSourceManager } from "@/components/admin-video-source-manager";
 import { Icon } from "@/components/icon";
 import type { VideoServer } from "@/lib/video-helpers";
@@ -198,6 +199,7 @@ export function SeriesCrudClient({
 
   // Series Form State
   const [isSeriesFormOpen, setIsSeriesFormOpen] = useState(false);
+  const [isTmdbModalOpen, setIsTmdbModalOpen] = useState(false);
   const [seriesFormValues, setSeriesFormValues] =
     useState<SeriesFormValues>(EMPTY_SERIES_FORM);
   const [seriesPosterUpload, setSeriesPosterUpload] =
@@ -2313,14 +2315,24 @@ export function SeriesCrudClient({
             </h2>
           </div>
 
-          <button
-            type="button"
-            className="admin-crud-action-btn is-enabled"
-            onClick={openAddSeriesForm}
-          >
-            <Icon name="plus" size={16} />
-            <span>إضافة مسلسل جديد</span>
-          </button>
+          <div className="admin-header-actions-group">
+            <button
+              type="button"
+              className="admin-crud-action-btn tmdb-import-trigger-btn"
+              onClick={() => setIsTmdbModalOpen(true)}
+            >
+              <span className="tmdb-pill-icon">TMDB</span>
+              <span>استيراد من TMDB</span>
+            </button>
+            <button
+              type="button"
+              className="admin-crud-action-btn is-enabled"
+              onClick={openAddSeriesForm}
+            >
+              <Icon name="plus" size={16} />
+              <span>إضافة مسلسل جديد</span>
+            </button>
+          </div>
         </header>
 
         {/* Toolbar: Search and Filter Pills */}
@@ -2603,6 +2615,22 @@ export function SeriesCrudClient({
           </div>
         </div>
       </dialog>
+
+      {/* TMDB Smart Content Import Modal */}
+      <AdminTmdbImportModal
+        isOpen={isTmdbModalOpen}
+        onClose={() => setIsTmdbModalOpen(false)}
+        defaultMediaType="tv"
+        categories={categories}
+        onSuccess={(importedId) => {
+          router.refresh();
+          // Find and open the imported series if present
+          const found = initialSeries.find((s) => s.id === importedId);
+          if (found) {
+            openSeasonsWorkspace(found);
+          }
+        }}
+      />
     </div>
   );
 }
