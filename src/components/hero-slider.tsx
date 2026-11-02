@@ -110,7 +110,7 @@ export function HeroSlider({
         </div>
         <div className="hero-content">
           <p className="eyebrow">أهلاً بك في كارتوني</p>
-          <h1 id="hero-title">لكل حكاية عالم</h1>
+          <h1 id="hero-title">لكل عالم حكاية</h1>
           <div
             className={`hero-empty-message ${errorMessage ? "is-error" : ""}`}
             role={errorMessage ? "alert" : "status"}

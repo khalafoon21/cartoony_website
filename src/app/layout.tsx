@@ -6,8 +6,17 @@ import "./globals.css";
 
 export const metadata: Metadata = {
   metadataBase: new URL(SITE_URL),
-  title: { default: "كارتوني | لكل حكاية عالم", template: "%s | كارتوني" },
+  title: { default: "كارتوني | لكل عالم حكاية", template: "%s | كارتوني" },
   description: "اكتشف عالم كارتوني؛ حكايات ملهمة ومغامرات ممتعة في واجهة عربية لكل العائلة.",
+  icons: {
+    icon: [
+      { url: "/branding/cartoony-logo.png", type: "image/png" },
+    ],
+    shortcut: ["/branding/cartoony-logo.png"],
+    apple: [
+      { url: "/branding/cartoony-logo.png", type: "image/png" },
+    ],
+  },
   alternates: {
     canonical: SITE_URL,
   },
@@ -16,7 +25,7 @@ export const metadata: Metadata = {
     locale: "ar_SA",
     type: "website",
     url: SITE_URL,
-    title: "كارتوني | لكل حكاية عالم",
+    title: "كارتوني | لكل عالم حكاية",
     description: "اكتشف عالم كارتوني؛ حكايات ملهمة ومغامرات ممتعة في واجهة عربية لكل العائلة.",
     images: [
       {
@@ -29,7 +38,7 @@ export const metadata: Metadata = {
   },
   twitter: {
     card: "summary_large_image",
-    title: "كارتوني | لكل حكاية عالم",
+    title: "كارتوني | لكل عالم حكاية",
     description: "اكتشف عالم كارتوني؛ حكايات ملهمة ومغامرات ممتعة في واجهة عربية لكل العائلة.",
     images: ["/branding/cartoony-logo.png"],
   },
