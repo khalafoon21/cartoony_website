@@ -1,16 +1,14 @@
 "use client";
 
 import {
-  useCallback,
   useEffect,
-  useLayoutEffect,
   useMemo,
-  useRef,
   useState,
   type CSSProperties,
 } from "react";
 import type { HomepageSectionConfig, Movie } from "@/lib/movies";
 import { useWatchlist } from "@/lib/use-watchlist";
+import { useSegmentedGlider } from "@/lib/use-segmented-glider";
 import { HeroSlider } from "./hero-slider";
 import { Icon, type IconName } from "./icon";
 import { MovieRow } from "./movie-row";
@@ -58,14 +56,7 @@ export function HomePage({
   const [activeFilter, setActiveFilter] = useState<QuickFilterKey>("movie");
   const { savedIds, toggleSave, clearWatchlist } = useWatchlist();
 
-  const trackRef = useRef<HTMLDivElement | null>(null);
-  const tabRefs = useRef<Record<string, HTMLButtonElement | null>>({});
-  const [glider, setGlider] = useState<{
-    left: number;
-    width: number;
-    visible: boolean;
-    ready: boolean;
-  }>({ left: 0, width: 0, visible: false, ready: false });
+  const { trackRef, tabRefs, glider } = useSegmentedGlider(activeFilter);
 
   const safeIndex =
     heroSlides.length > 0
@@ -154,41 +145,6 @@ export function HomePage({
     if (activeFilter === "all" || activeFilter === "latest") return [];
     return catalogPool.filter((item) => matchesQuickFilter(item, activeFilter, savedIds));
   }, [catalogPool, activeFilter, savedIds]);
-
-  // Measure active tab position & width for the sliding pill glider
-  const updateGlider = useCallback(() => {
-    if (activeFilter === "all") {
-      setGlider((prev) => ({ ...prev, visible: false, ready: true }));
-      return;
-    }
-    const btn = tabRefs.current[activeFilter];
-    if (!btn) {
-      setGlider((prev) => ({ ...prev, visible: false, ready: true }));
-      return;
-    }
-    setGlider({
-      left: btn.offsetLeft,
-      width: btn.offsetWidth,
-      visible: true,
-      ready: true,
-    });
-  }, [activeFilter]);
-
-  useLayoutEffect(() => {
-    updateGlider();
-  }, [updateGlider, savedMovies.length]);
-
-  useEffect(() => {
-    const track = trackRef.current;
-    if (!track) return;
-    const ro = new ResizeObserver(() => updateGlider());
-    ro.observe(track);
-    window.addEventListener("resize", updateGlider);
-    return () => {
-      ro.disconnect();
-      window.removeEventListener("resize", updateGlider);
-    };
-  }, [updateGlider]);
 
   // Sync with #saved hash navigation from header/sidebar
   useEffect(() => {
