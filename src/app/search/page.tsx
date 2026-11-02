@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { SearchViewClient } from "@/components/search-view-client";
 import { getPublicPublishedCatalog } from "@/lib/movies-public";
+import { pageMetadata } from "@/lib/seo";
 
 export const dynamic = "force-dynamic";
 
@@ -11,27 +12,13 @@ export async function generateMetadata({
 }): Promise<Metadata> {
   const params = await searchParams;
   const q = typeof params.q === "string" ? params.q.trim() : "";
-  const hasFilters = Boolean(q || params.format || params.filter);
-
-  return {
-    title: q ? `نتائج البحث عن "${q}" | كارتوني` : "البحث والاستكشاف | كارتوني",
+  return pageMetadata({
+    title: q ? `نتائج البحث عن «${q.slice(0, 80)}»` : "البحث والاستكشاف",
     description:
       "ابحث فوراً في مكتبة كارتوني للأفلام والمسلسلات الكرتونية بالعربية والإنجليزية.",
-    alternates: { canonical: "/search" },
-    robots: hasFilters
-      ? { index: false, follow: true }
-      : { index: true, follow: true },
-    openGraph: {
-      title: q ? `نتائج البحث عن "${q}" في كارتوني` : "البحث الذكي في كارتوني",
-      description: "ابحث عن أعمالك الكرتونية المفضلة.",
-      type: "website",
-    },
-    twitter: {
-      card: "summary_large_image",
-      title: q ? `نتائج البحث عن "${q}" في كارتوني` : "البحث الذكي في كارتوني",
-      description: "ابحث عن أعمالك الكرتونية المفضلة.",
-    },
-  };
+    path: "/search",
+    index: false,
+  });
 }
 
 export default async function SearchPage({

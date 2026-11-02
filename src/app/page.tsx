@@ -1,6 +1,8 @@
 import { HomePage } from "@/components/home-page";
 import { getPublicHomepageSections } from "@/lib/movies-public";
 import { getHomepageSectionsSettings } from "@/lib/homepage-admin";
+import { JsonLd } from "@/components/json-ld";
+import { websiteJsonLd } from "@/lib/structured-data";
 
 export const dynamic = "force-dynamic";
 export const metadata = { alternates: { canonical: "/" } };
@@ -10,11 +12,14 @@ export default async function Page() {
   const { ok, error, sections, heroSlides, allMovies } = await getPublicHomepageSections(sectionsConfig);
 
   return (
-    <HomePage
-      sections={sections}
-      heroSlides={heroSlides}
-      allMovies={allMovies}
-      dbError={!ok ? error : undefined}
-    />
+    <>
+      <JsonLd data={websiteJsonLd()} />
+      <HomePage
+        sections={sections}
+        heroSlides={heroSlides}
+        allMovies={allMovies}
+        dbError={!ok ? error : undefined}
+      />
+    </>
   );
 }

@@ -2,18 +2,14 @@ import Link from "next/link";
 import { Icon } from "@/components/icon";
 import { MovieCard } from "@/components/movie-card";
 import { getPublicPublishedSeries } from "@/lib/movies-public";
+import { pageMetadata } from "@/lib/seo";
 
 export const dynamic = "force-dynamic";
-export const metadata = {
-  title: "مسلسلات كرتون | كارتوني",
-  description: "استكشف قائمة مسلسلات الرسوم المتحركة وحكايات الأنمي في مكتبة كارتوني.",
-  alternates: { canonical: "/series" },
-  openGraph: {
-    title: "مسلسلات كرتون | كارتوني",
-    description: "استكشف قائمة مسلسلات الرسوم المتحركة وحكايات الأنمي في مكتبة كارتوني.",
-    type: "website",
-  },
-};
+export const metadata = pageMetadata({
+  title: "مسلسلات كرتون مدبلجة ومترجمة",
+  description: "استكشف مسلسلات الكرتون والرسوم المتحركة على كارتوني. تصفح تفاصيل كل مسلسل ومواسمه وحلقاته المدبلجة والمترجمة والأعمال المتاحة في المكتبة.",
+  path: "/series",
+});
 
 export default async function SeriesListingPage() {
   const { ok, error, movies: seriesList } = await getPublicPublishedSeries();

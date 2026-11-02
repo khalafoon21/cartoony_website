@@ -1,13 +1,14 @@
 import type { Metadata, Viewport } from "next";
 import Script from "next/script";
 import { SiteShell } from "@/components/site-shell";
-import { SITE_URL } from "@/lib/site";
+import { SITE_DESCRIPTION, SITE_IMAGE, SITE_NAME, SITE_TITLE, SITE_URL } from "@/lib/site";
+import { pageRobots } from "@/lib/seo";
 import "./globals.css";
 
 export const metadata: Metadata = {
   metadataBase: new URL(SITE_URL),
-  title: { default: "كارتوني | لكل عالم حكاية", template: "%s | كارتوني" },
-  description: "اكتشف عالم كارتوني؛ حكايات ملهمة ومغامرات ممتعة في واجهة عربية لكل العائلة.",
+  title: { default: SITE_TITLE, template: `%s | ${SITE_NAME}` },
+  description: SITE_DESCRIPTION,
   icons: {
     icon: [
       { url: "/branding/cartoony-logo.png", type: "image/png" },
@@ -17,35 +18,32 @@ export const metadata: Metadata = {
       { url: "/branding/cartoony-logo.png", type: "image/png" },
     ],
   },
-  alternates: {
-    canonical: SITE_URL,
-  },
+  verification: process.env.GOOGLE_SITE_VERIFICATION
+    ? { google: process.env.GOOGLE_SITE_VERIFICATION }
+    : undefined,
   openGraph: {
-    siteName: "كارتوني",
+    siteName: SITE_NAME,
     locale: "ar_SA",
     type: "website",
     url: SITE_URL,
-    title: "كارتوني | لكل عالم حكاية",
-    description: "اكتشف عالم كارتوني؛ حكايات ملهمة ومغامرات ممتعة في واجهة عربية لكل العائلة.",
+    title: SITE_TITLE,
+    description: SITE_DESCRIPTION,
     images: [
       {
-        url: "/branding/cartoony-logo.png",
-        width: 1200,
-        height: 630,
+        url: SITE_IMAGE,
+        width: 940,
+        height: 600,
         alt: "شعار كارتوني",
       },
     ],
   },
   twitter: {
     card: "summary_large_image",
-    title: "كارتوني | لكل عالم حكاية",
-    description: "اكتشف عالم كارتوني؛ حكايات ملهمة ومغامرات ممتعة في واجهة عربية لكل العائلة.",
-    images: ["/branding/cartoony-logo.png"],
+    title: SITE_TITLE,
+    description: SITE_DESCRIPTION,
+    images: [SITE_IMAGE],
   },
-  robots: {
-    index: process.env.VERCEL_ENV !== "preview",
-    follow: process.env.VERCEL_ENV !== "preview",
-  },
+  robots: pageRobots(),
 };
 
 export const viewport: Viewport = {
@@ -55,29 +53,9 @@ export const viewport: Viewport = {
   viewportFit: "cover",
 };
 
-const websiteJsonLd = {
-  "@context": "https://schema.org",
-  "@type": "WebSite",
-  name: "كارتوني",
-  alternateName: "Cartoony",
-  url: SITE_URL,
-  inLanguage: "ar",
-  potentialAction: {
-    "@type": "SearchAction",
-    target: `${SITE_URL}/search?q={search_term_string}`,
-    "query-input": "required name=search_term_string",
-  },
-};
-
 export default function RootLayout({ children }: Readonly<{ children: React.ReactNode }>) {
   return (
     <html lang="ar" dir="rtl">
-      <head>
-        <script
-          type="application/ld+json"
-          dangerouslySetInnerHTML={{ __html: JSON.stringify(websiteJsonLd) }}
-        />
-      </head>
       <body className="min-h-screen bg-background font-sans text-cream antialiased">
         <SiteShell>{children}</SiteShell>
         <Script

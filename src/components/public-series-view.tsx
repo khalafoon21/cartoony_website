@@ -5,7 +5,9 @@ import { useState, type CSSProperties } from "react";
 import { Icon } from "@/components/icon";
 import { MovieRow } from "@/components/movie-row";
 import { PublishedArtwork } from "@/components/published-artwork";
-import { SITE_URL } from "@/lib/site";
+import { JsonLd } from "./json-ld";
+import { breadcrumbJsonLd, contentJsonLd } from "@/lib/structured-data";
+import { getCategoryHref } from "@/lib/content-links";
 import type { Movie } from "@/lib/movies";
 import type { PublicSeason } from "@/lib/movies-public";
 
@@ -31,36 +33,16 @@ export function PublicSeriesView({
   const currentSeason =
     seasons.find((s) => s.id === selectedSeasonId) ?? seasons[0];
 
-  const seriesJsonLd = {
-    "@context": "https://schema.org",
-    "@type": "TVSeries",
-    name: series.title,
-    alternateName: series.englishTitle || undefined,
-    description: series.description,
-    image: series.posterUrl || series.backdropUrl || undefined,
-    datePublished: `${series.year}-01-01`,
-    inLanguage: "ar",
-    numberOfSeasons: seasons.length,
-    numberOfEpisodes: seasons.reduce((acc, s) => acc + s.episodes.length, 0),
-    ...(Number(series.rating) > 0
-      ? {
-          aggregateRating: {
-            "@type": "AggregateRating",
-            ratingValue: series.rating,
-            bestRating: "10",
-            worstRating: "0",
-          },
-        }
-      : {}),
-    url: `${SITE_URL}/series/${series.slug}`,
-  };
-
   return (
     <main id="main-content" className="site-main" tabIndex={-1}>
-      <script
-        type="application/ld+json"
-        dangerouslySetInnerHTML={{ __html: JSON.stringify(seriesJsonLd) }}
-      />
+      <JsonLd data={[
+        contentJsonLd(series),
+        breadcrumbJsonLd([
+          { name: "الرئيسية", path: "/" },
+          { name: "مسلسلات كرتون", path: "/series" },
+          { name: series.title, path: `/series/${series.slug}` },
+        ]),
+      ]} />
       {/* Series Hero Section */}
       <section
         className="hero"
@@ -88,11 +70,14 @@ export function PublicSeriesView({
           <div className="movie-meta">
             <span className="meta-pill">{series.year}</span>
             <span className="meta-dot" />
-            {categoryBadges.map((catLabel) => (
-              <span key={catLabel} className="meta-pill is-category">
-                {catLabel}
-              </span>
-            ))}
+            {categoryBadges.map((catLabel, index) => {
+              const slug = series.categories?.[index] || series.category;
+              return slug !== "all" && slug !== "space" ? (
+                <Link key={catLabel} href={getCategoryHref(slug)} className="meta-pill is-category">
+                  {catLabel}
+                </Link>
+              ) : <span key={catLabel} className="meta-pill is-category">{catLabel}</span>;
+            })}
             <span className="meta-dot" />
             <span className="meta-pill">{series.audioBadge}</span>
             <span className="meta-dot" />

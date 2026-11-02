@@ -2,18 +2,14 @@ import Link from "next/link";
 import { Icon } from "@/components/icon";
 import { MovieCard } from "@/components/movie-card";
 import { getPublicPublishedMovies } from "@/lib/movies-public";
+import { pageMetadata } from "@/lib/seo";
 
 export const dynamic = "force-dynamic";
-export const metadata = {
-  title: "أفلام كرتون | كارتوني",
-  description: "مكتبة سينمائية متكاملة لأفلام الرسوم المتحركة والكرتون المدبلجة والمترجمة بجودة عالية.",
-  alternates: { canonical: "/movies" },
-  openGraph: {
-    title: "أفلام كرتون | كارتوني",
-    description: "مكتبة سينمائية متكاملة لأفلام الرسوم المتحركة والكرتون المدبلجة والمترجمة بجودة عالية.",
-    type: "website",
-  },
-};
+export const metadata = pageMetadata({
+  title: "أفلام كرتون مدبلجة ومترجمة",
+  description: "تصفح أفلام الكرتون والرسوم المتحركة المدبلجة والمترجمة على كارتوني. اكتشف قصة كل فيلم وتفاصيله والأفلام المتاحة في المكتبة.",
+  path: "/movies",
+});
 
 export default async function MoviesListingPage() {
   const { ok, error, movies } = await getPublicPublishedMovies();

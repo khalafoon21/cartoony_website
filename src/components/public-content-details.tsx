@@ -6,31 +6,23 @@ import { Icon } from "@/components/icon";
 import { PublishedArtwork } from "@/components/published-artwork";
 import { MovieRow } from "@/components/movie-row";
 import { getPublicContentBySlug } from "@/lib/movies-public";
-import { getContentHref } from "@/lib/content-links";
-import { SITE_URL } from "@/lib/site";
+import { getCategoryHref, getContentHref } from "@/lib/content-links";
+import { pageMetadata, pageRobots } from "@/lib/seo";
+import { JsonLd } from "./json-ld";
+import { breadcrumbJsonLd, contentJsonLd } from "@/lib/structured-data";
 import type { ContentFormat } from "@/lib/movies";
 
 export async function getContentMetadata(slug: string, format: ContentFormat): Promise<Metadata> {
   const { item } = await getPublicContentBySlug(slug, format);
-  if (!item) return { robots: { index: false, follow: false } };
-  const ogImage = item.backdropUrl || item.posterUrl;
-  return {
-    title: item.title,
-    description: item.description,
-    alternates: { canonical: getContentHref(item) },
-    openGraph: {
-      title: item.title,
-      description: item.description,
-      type: format === "movie" ? "video.movie" : "video.tv_show",
-      ...(ogImage ? { images: [ogImage] } : {}),
-    },
-    twitter: {
-      card: "summary_large_image",
-      title: item.title,
-      description: item.description,
-      ...(ogImage ? { images: [ogImage] } : {}),
-    },
-  };
+  if (!item) return { robots: pageRobots(false) };
+  const kind = format === "movie" ? "فيلم" : "مسلسل";
+  return pageMetadata({
+    title: `${kind} ${item.title} ${item.audioBadge}${item.year ? ` (${item.year})` : ""}`,
+    description: item.description || `قصة وتفاصيل ${kind} ${item.title} ${item.audioBadge} على كارتوني.`,
+    path: getContentHref(item),
+    image: item.backdropUrl || item.posterUrl,
+    type: format === "movie" ? "video.movie" : "video.tv_show",
+  });
 }
 
 export async function PublicContentDetails({
@@ -68,34 +60,16 @@ export async function PublicContentDetails({
       ? movie.categoryLabels
       : [movie.categoryLabel];
 
-  const movieJsonLd = {
-    "@context": "https://schema.org",
-    "@type": "Movie",
-    name: movie.title,
-    alternateName: movie.englishTitle || undefined,
-    description: movie.description,
-    image: movie.posterUrl || movie.backdropUrl || undefined,
-    datePublished: `${movie.year}-01-01`,
-    inLanguage: "ar",
-    ...(Number(movie.rating) > 0
-      ? {
-          aggregateRating: {
-            "@type": "AggregateRating",
-            ratingValue: movie.rating,
-            bestRating: "10",
-            worstRating: "0",
-          },
-        }
-      : {}),
-    url: `${SITE_URL}${getContentHref(movie)}`,
-  };
-
   return (
     <main id="main-content" className="site-main" tabIndex={-1}>
-      <script
-        type="application/ld+json"
-        dangerouslySetInnerHTML={{ __html: JSON.stringify(movieJsonLd) }}
-      />
+      <JsonLd data={[
+        contentJsonLd(movie),
+        breadcrumbJsonLd([
+          { name: "الرئيسية", path: "/" },
+          { name: "أفلام كرتون", path: "/movies" },
+          { name: movie.title, path: getContentHref(movie) },
+        ]),
+      ]} />
       <section
         className="hero"
         aria-labelledby="movie-detail-title"
@@ -118,11 +92,14 @@ export async function PublicContentDetails({
           <div className="movie-meta">
             <span className="meta-pill">{movie.year}</span>
             <span className="meta-dot" />
-            {categoryBadges.map((catLabel) => (
-              <span key={catLabel} className="meta-pill is-category">
-                {catLabel}
-              </span>
-            ))}
+            {categoryBadges.map((catLabel, index) => {
+              const slug = movie.categories?.[index] || movie.category;
+              return slug !== "all" && slug !== "space" ? (
+                <Link key={catLabel} href={getCategoryHref(slug)} className="meta-pill is-category">
+                  {catLabel}
+                </Link>
+              ) : <span key={catLabel} className="meta-pill is-category">{catLabel}</span>;
+            })}
             <span className="meta-dot" />
             <span className="meta-pill">{movie.audioBadge}</span>
             {movie.duration && <><span className="meta-dot" /><span>{movie.duration}</span></>}

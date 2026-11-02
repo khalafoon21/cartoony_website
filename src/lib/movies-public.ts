@@ -1,4 +1,5 @@
 import "server-only";
+import { cache } from "react";
 
 import type {
   ArtTheme,
@@ -115,6 +116,9 @@ function mapContent(row: DbMovieRow | DbSeriesRow, format: ContentFormat): Movie
     ageRating: row.age_rating || undefined,
     year: row.release_year,
     duration,
+    durationMinutes: "duration_minutes" in row ? row.duration_minutes : undefined,
+    publishedAt: row.published_at,
+    updatedAt: row.updated_at,
     rating: Number(row.rating).toFixed(1),
     theme: VALID_THEMES.has(row.theme as ArtTheme) ? row.theme as ArtTheme : "forest",
     accent: row.accent_color || "#F5A623",
@@ -174,7 +178,8 @@ export function getPublicPublishedSeries(): Promise<PublicResult> {
   return getPublishedContent("series");
 }
 
-export async function getPublicPublishedCatalog(): Promise<PublicResult> {
+// Reuse this public read within one render request, without caching between visitors.
+export const getPublicPublishedCatalog = cache(async (): Promise<PublicResult> => {
   const [movies, series] = await Promise.all([
     getPublicPublishedMovies(), getPublicPublishedSeries(),
   ]);
@@ -183,7 +188,7 @@ export async function getPublicPublishedCatalog(): Promise<PublicResult> {
     error: movies.error || series.error,
     movies: [...movies.movies, ...series.movies],
   };
-}
+});
 
 /** Reads only the selected table, so movie and series slugs cannot collide. */
 export async function getPublicContentBySlug(slug: string, format: ContentFormat = "movie"): Promise<{
@@ -220,6 +225,8 @@ export type PublicEpisode = {
   durationMinutes: number;
   durationLabel: string;
   audioBadge: string;
+  publishedAt?: string | null;
+  updatedAt?: string | null;
   videoUrl?: string;
   videoType?: "direct" | "iframe";
   servers?: VideoServer[];
@@ -260,6 +267,8 @@ type DbSeasonJoin = {
     still_url: string | null;
     duration_minutes: number;
     audio_badge: string;
+    published_at?: string | null;
+    updated_at?: string | null;
     metadata?: { video_url?: string; subtitle_url?: string; subtitle_lang?: string };
     status: string;
   }>;
@@ -300,6 +309,8 @@ function mapPublicSeasons(rawSeasons?: DbSeasonJoin[]): PublicSeason[] {
             durationMinutes: ep.duration_minutes,
             durationLabel: `${ep.duration_minutes} دقيقة`,
             audioBadge: ep.audio_badge === "subtitled" ? "مترجم" : "مدبلج",
+            publishedAt: ep.published_at,
+            updatedAt: ep.updated_at,
             videoUrl,
             videoType,
             servers,

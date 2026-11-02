@@ -1,12 +1,16 @@
 import Link from "next/link";
 import type { Metadata } from "next";
-import { notFound } from "next/navigation";
+import { notFound, permanentRedirect } from "next/navigation";
 import type { CSSProperties } from "react";
 import { Icon } from "@/components/icon";
 import { CategoryArt } from "@/components/illustrations";
 import { MovieCard } from "@/components/movie-card";
 import { categories } from "@/lib/movies";
 import { getPublicPublishedCatalog } from "@/lib/movies-public";
+import { matchesCategory } from "@/lib/content-links";
+import { pageMetadata, pageRobots } from "@/lib/seo";
+import { JsonLd } from "@/components/json-ld";
+import { breadcrumbJsonLd } from "@/lib/structured-data";
 
 export const dynamic = "force-dynamic";
 
@@ -15,24 +19,15 @@ export async function generateMetadata({ params }: {
 }): Promise<Metadata> {
   const { slug } = await params;
   const category = categories.find((item) => item.slug === slug);
-  if (!category) return { robots: { index: false, follow: false } };
-  const title = `أفلام ومسلسلات ${category.label} | كارتوني`;
-  const description = `استكشف أفضل أفلام ومسلسلات الرسوم المتحركة في تصنيف ${category.label} (${category.englishLabel}). ${category.caption}.`;
-  return {
-    title,
-    description,
-    alternates: { canonical: `/category/${category.slug}` },
-    openGraph: {
-      title,
-      description,
-      type: "website",
-    },
-    twitter: {
-      card: "summary_large_image",
-      title,
-      description,
-    },
-  };
+  if (!category) return { robots: pageRobots(false) };
+  if (category.slug === "movies") permanentRedirect("/movies");
+  const catalog = await getPublicPublishedCatalog();
+  return pageMetadata({
+    title: `أفلام ومسلسلات كرتون ${category.label}`,
+    description: `استكشف أفلام ومسلسلات الكرتون في تصنيف ${category.label} على كارتوني. ${category.caption}، وتفاصيل الأعمال والحلقات المتاحة في المكتبة.`,
+    path: `/category/${category.slug}`,
+    index: catalog.ok && catalog.movies.some((item) => matchesCategory(item, category.slug)),
+  });
 }
 
 export default async function CategoryPage({
@@ -41,6 +36,7 @@ export default async function CategoryPage({
   params: Promise<{ slug: string }>;
 }) {
   const { slug } = await params;
+  if (slug === "movies") permanentRedirect("/movies");
   const activeCategory = categories.find((cat) => cat.slug === slug);
 
   if (!activeCategory) {
@@ -49,17 +45,14 @@ export default async function CategoryPage({
 
   const { ok, error, movies: publishedMovies } = await getPublicPublishedCatalog();
 
-  const matchingMovies =
-    activeCategory.slug === "movies"
-      ? publishedMovies.filter((item) => item.format === "movie")
-      : publishedMovies.filter(
-            (m) =>
-              m.category === activeCategory.slug ||
-              m.categories?.includes(activeCategory.slug)
-          );
+  const matchingMovies = publishedMovies.filter((item) => matchesCategory(item, activeCategory.slug));
 
   return (
     <main id="main-content" className="site-main" tabIndex={-1}>
+      <JsonLd data={breadcrumbJsonLd([
+        { name: "الرئيسية", path: "/" },
+        { name: activeCategory.label, path: `/category/${activeCategory.slug}` },
+      ])} />
       <section className="content-section" style={{ paddingTop: "48px", paddingBottom: "24px" }}>
         <div className="section-heading">
           <div style={{ display: "flex", alignItems: "center", gap: "18px" }}>

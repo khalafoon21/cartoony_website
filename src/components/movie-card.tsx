@@ -54,7 +54,7 @@ export function MovieCard({
       aria-label={[movie.title, ...metadata].join(" — ")}
     >
       <div className="poster">
-        <PublishedArtwork src={movie.posterUrl} className="poster-real-img scene-art" />
+        <PublishedArtwork src={movie.posterUrl} alt={`ملصق ${movie.format === "series" ? "مسلسل" : "فيلم"} ${movie.title}`} className="poster-real-img scene-art" />
 
         {movie.categoryLabel && (
           <span className="poster-category">{movie.categoryLabel}</span>

@@ -104,6 +104,9 @@ export type Movie = {
   ageRating?: string;
   year: number;
   duration: string;
+  durationMinutes?: number;
+  publishedAt?: string | null;
+  updatedAt?: string | null;
   rating: string;
   theme: ArtTheme;
   accent: string;

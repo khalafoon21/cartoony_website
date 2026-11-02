@@ -4,6 +4,9 @@ import { notFound } from "next/navigation";
 import { Icon } from "@/components/icon";
 import { MovieWatchView } from "@/components/movie-watch-view";
 import { getPublicContentBySlug } from "@/lib/movies-public";
+import { pageMetadata, pageRobots } from "@/lib/seo";
+import { JsonLd } from "@/components/json-ld";
+import { breadcrumbJsonLd, videoJsonLd } from "@/lib/structured-data";
 
 export const dynamic = "force-dynamic";
 
@@ -14,25 +17,15 @@ export async function generateMetadata({
 }): Promise<Metadata> {
   const { slug } = await params;
   const { item: movie } = await getPublicContentBySlug(slug, "movie");
-  if (!movie) return { robots: { index: false, follow: false } };
-  const image = movie.backdropUrl || movie.posterUrl;
-  return {
-    title: `مشاهدة ${movie.title} | كارتوني`,
+  if (!movie) return { robots: pageRobots(false) };
+  return pageMetadata({
+    title: `مشاهدة فيلم ${movie.title} ${movie.audioBadge}`,
     description: movie.description,
-    alternates: { canonical: `/watch/movies/${movie.slug}` },
-    openGraph: {
-      title: `مشاهدة فيلم ${movie.title}`,
-      description: movie.description,
-      type: "video.movie",
-      ...(image ? { images: [image] } : {}),
-    },
-    twitter: {
-      card: "summary_large_image",
-      title: `مشاهدة فيلم ${movie.title}`,
-      description: movie.description,
-      ...(image ? { images: [image] } : {}),
-    },
-  };
+    path: `/watch/movies/${movie.slug}`,
+    image: movie.backdropUrl || movie.posterUrl,
+    type: "video.movie",
+    index: Boolean(movie.videoUrl),
+  });
 }
 
 export default async function MovieWatchPage({
@@ -63,8 +56,28 @@ export default async function MovieWatchPage({
     notFound();
   }
 
+  const video = videoJsonLd({
+    title: movie.title,
+    description: movie.description,
+    path: `/watch/movies/${movie.slug}`,
+    image: movie.backdropUrl || movie.posterUrl,
+    videoUrl: movie.videoUrl,
+    videoType: movie.videoType,
+    publishedAt: movie.publishedAt,
+    durationMinutes: movie.durationMinutes,
+  });
+
   return (
     <main id="main-content" className="site-main" tabIndex={-1}>
+      <JsonLd data={[
+        breadcrumbJsonLd([
+          { name: "الرئيسية", path: "/" },
+          { name: "أفلام كرتون", path: "/movies" },
+          { name: movie.title, path: `/movies/${movie.slug}` },
+          { name: "مشاهدة الفيلم", path: `/watch/movies/${movie.slug}` },
+        ]),
+        ...(video ? [video] : []),
+      ]} />
       <MovieWatchView movie={movie} related={related} />
     </main>
   );

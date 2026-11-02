@@ -4,6 +4,9 @@ import { notFound } from "next/navigation";
 import { Icon } from "@/components/icon";
 import { EpisodeWatchView } from "@/components/episode-watch-view";
 import { getPublicEpisodeWithContext } from "@/lib/movies-public";
+import { pageMetadata, pageRobots } from "@/lib/seo";
+import { JsonLd } from "@/components/json-ld";
+import { breadcrumbJsonLd, episodeJsonLd, videoJsonLd } from "@/lib/structured-data";
 
 export const dynamic = "force-dynamic";
 
@@ -19,30 +22,21 @@ export async function generateMetadata({
   );
 
   if (!series || !currentEpisode || !currentSeason) {
-    return { robots: { index: false, follow: false } };
+    return { robots: pageRobots(false) };
   }
 
-  const title = `مشاهدة ${series.title}: ${currentEpisode.title} (${currentSeason.title}) | كارتوني`;
+  const title = `${series.title} — ${currentEpisode.title}، الحلقة ${currentEpisode.episodeNumber} (${currentSeason.title})`;
   const description = currentEpisode.description || series.description;
   const image = currentEpisode.stillUrl || series.backdropUrl || series.posterUrl;
 
-  return {
+  return pageMetadata({
     title,
     description,
-    alternates: { canonical: `/watch/series/${series.slug}/${currentEpisode.slug}` },
-    openGraph: {
-      title,
-      description,
-      type: "video.episode",
-      ...(image ? { images: [image] } : {}),
-    },
-    twitter: {
-      card: "summary_large_image",
-      title,
-      description,
-      ...(image ? { images: [image] } : {}),
-    },
-  };
+    path: `/watch/series/${series.slug}/${currentEpisode.slug}`,
+    image,
+    type: "video.episode",
+    index: Boolean(currentEpisode.videoUrl),
+  });
 }
 
 export default async function SeriesEpisodeWatchPage({
@@ -83,8 +77,30 @@ export default async function SeriesEpisodeWatchPage({
     notFound();
   }
 
+  const watchPath = `/watch/series/${series.slug}/${currentEpisode.slug}`;
+  const video = videoJsonLd({
+    title: `${series.title} — ${currentEpisode.title}`,
+    description: currentEpisode.description || series.description,
+    path: watchPath,
+    image: currentEpisode.stillUrl || series.backdropUrl || series.posterUrl,
+    videoUrl: currentEpisode.videoUrl,
+    videoType: currentEpisode.videoType,
+    publishedAt: currentEpisode.publishedAt,
+    durationMinutes: currentEpisode.durationMinutes,
+  });
+
   return (
     <main id="main-content" className="site-main" tabIndex={-1}>
+      <JsonLd data={[
+        episodeJsonLd(series, currentSeason, currentEpisode),
+        breadcrumbJsonLd([
+          { name: "الرئيسية", path: "/" },
+          { name: "مسلسلات كرتون", path: "/series" },
+          { name: series.title, path: `/series/${series.slug}` },
+          { name: currentEpisode.title, path: watchPath },
+        ]),
+        ...(video ? [video] : []),
+      ]} />
       <EpisodeWatchView
         series={series}
         seasons={seasons}
