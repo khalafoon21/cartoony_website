@@ -6,6 +6,7 @@ import {
   useState,
   type CSSProperties,
 } from "react";
+import Image from "next/image";
 import type { HomepageSectionConfig, Movie } from "@/lib/movies";
 import { useWatchlist } from "@/lib/use-watchlist";
 import { useSegmentedGlider } from "@/lib/use-segmented-glider";
@@ -350,11 +351,18 @@ export function HomePage({
         </div>
 
         <footer className="site-footer">
-          <span>
-            كارتوني<span className="footer-dot">.</span> <small>لكل حكاية عالم</small>
-          </span>
-          <p>
-            صُنع بشغف للخيال <Icon name="heartFilled" size={13} />
+          <a href="#home" className="footer-brand-link" aria-label="كارتوني — الرئيسية">
+            <Image
+              src="/branding/cartoony-logo.png"
+              alt="كارتوني"
+              width={88}
+              height={42}
+              className="footer-brand-logo"
+            />
+          </a>
+          <p className="footer-passion">
+            <span>صُنع بشغف للخيال</span>
+            <Icon name="heartFilled" size={13} />
           </p>
           <a href="#home" className="footer-top-link">
             إلى الأعلى ↑

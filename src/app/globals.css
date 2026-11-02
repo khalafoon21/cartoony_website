@@ -2043,55 +2043,69 @@ body:has(.admin-auth-shell) .page-shell {
    ========================================================================== */
 .site-footer {
   margin-inline: 5.2%;
-  padding: 26px 0 34px;
+  padding: 24px 0 32px;
   border-top: 1px solid rgba(255, 255, 255, 0.08);
-  display: flex;
-  justify-content: space-between;
+  display: grid;
+  grid-template-columns: 1fr auto 1fr;
   align-items: center;
-  gap: 15px;
+  gap: 16px;
   color: #93A0B6;
 }
 
-.site-footer > span {
-  font-weight: 900;
-  font-size: 21px;
-  color: #DCE3EE;
-}
-
-.footer-dot {
-  color: var(--orange);
-}
-
-.site-footer small {
-  font-size: 10px;
-  font-weight: 500;
-  margin-right: 10px;
-  color: #8896AC;
-}
-
-.site-footer p {
-  display: flex;
-  gap: 8px;
+.footer-brand-link {
+  justify-self: start;
+  display: inline-flex;
   align-items: center;
-  font-size: 10px;
+  text-decoration: none;
+  opacity: 0.9;
+  transition: opacity 0.22s ease, transform 0.22s ease;
 }
 
-.site-footer p svg {
+.footer-brand-link:hover {
+  opacity: 1;
+  transform: scale(1.03);
+}
+
+.footer-brand-logo {
+  height: 38px;
+  width: auto;
+  max-width: 92px;
+  object-fit: contain;
+  filter: drop-shadow(0 3px 8px rgba(0, 0, 0, 0.4));
+}
+
+.site-footer .footer-passion {
+  justify-self: center;
+  margin: 0;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 7px;
+  font-size: 12px;
+  font-weight: 600;
+  color: #9EB0C8;
+  white-space: nowrap;
+}
+
+.site-footer .footer-passion svg {
   color: var(--coral);
+  flex-shrink: 0;
 }
 
-.site-footer p > span {
-  margin-right: 10px;
-  color: #7D8B9F;
+.site-footer .footer-passion > span {
+  margin: 0;
+  color: #9EB0C8;
 }
 
 .footer-top-link {
+  justify-self: end;
   font-size: 11px;
   font-weight: 700;
   padding: 7px 14px;
   border-radius: 999px;
   background: rgba(255, 255, 255, 0.04);
   border: 1px solid rgba(255, 255, 255, 0.08);
+  white-space: nowrap;
   transition:
     color 0.25s ease,
     border-color 0.25s ease,
@@ -3855,10 +3869,31 @@ input[type="file"]:focus-visible + .admin-upload-trigger-btn {
   .card-details { font-size: 11px; }
   .poster-title { font-size: 20px; }
   .poster-title small { font-size: 8px; }
-  .site-footer { flex-wrap: wrap; padding-top: 18px; gap: 8px; }
-  .site-footer > span { font-size: 19px; }
-  .site-footer p { order: 3; width: 100%; font-size: 9px; }
-  .site-footer p > span { margin-right: auto; }
+  .site-footer {
+    display: grid !important;
+    grid-template-columns: 1fr auto 1fr !important;
+    align-items: center !important;
+    padding-top: 18px !important;
+    gap: 8px !important;
+  }
+  .footer-brand-logo {
+    height: 32px !important;
+    max-width: 74px !important;
+  }
+  .site-footer .footer-passion {
+    order: 0 !important;
+    width: auto !important;
+    justify-self: center !important;
+    font-size: 11px !important;
+    gap: 5px !important;
+  }
+  .site-footer .footer-passion > span {
+    margin: 0 !important;
+  }
+  .footer-top-link {
+    font-size: 10px !important;
+    padding: 6px 11px !important;
+  }
 }
 
 @media (max-width: 480px) {
