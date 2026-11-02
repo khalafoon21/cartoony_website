@@ -6989,9 +6989,9 @@ html, body {
   }
 }
 
-/* Reduced motion preference (excluding intentional spatial dock & drawer transitions) */
+/* Reduced motion preference (excluding intentional spatial dock transitions) */
 @media (prefers-reduced-motion: reduce) {
-  *:not(.sidebar):not(.sidebar *):not(.sidebar-scrim):not(.mobile-more-drawer):not(.mobile-bottom-nav *),
+  *:not(.sidebar):not(.sidebar *):not(.sidebar-scrim):not(.mobile-bottom-nav *),
   *:not(.sidebar):not(.sidebar *)::before,
   *:not(.sidebar):not(.sidebar *)::after {
     animation-duration: 0.01ms !important;
@@ -7028,9 +7028,7 @@ select:focus-visible {
 
 /* Hide mobile-only elements on desktop (> 767px) */
 .mobile-app-header,
-.mobile-bottom-nav,
-.mobile-more-backdrop,
-.mobile-more-drawer {
+.mobile-bottom-nav {
   display: none;
 }
 
@@ -7170,7 +7168,7 @@ select:focus-visible {
     color: var(--orange, #F5A623) !important;
   }
 
-  /* 4. Fixed Bottom Navigation Bar (5 tabs: Home, Movies, Search, Series, More) */
+  /* 4. Fixed Bottom Navigation Bar (Home, Movies, Search, Series) */
   .mobile-bottom-nav {
     display: block !important;
     position: fixed !important;
@@ -7183,7 +7181,7 @@ select:focus-visible {
   .mobile-bottom-nav-inner.segmented-capsule-bar {
     width: 100% !important;
     max-width: none !important;
-    grid-template-columns: repeat(5, minmax(0, 1fr)) !important;
+    grid-template-columns: repeat(4, minmax(0, 1fr)) !important;
   }
 
   .mobile-bottom-nav .mobile-tab-btn {
@@ -7210,158 +7208,6 @@ select:focus-visible {
     white-space: nowrap !important;
     line-height: 1.1 !important;
     letter-spacing: -0.2px !important;
-  }
-
-  /* More Options Bottom Drawer */
-  .mobile-more-backdrop {
-    display: block !important;
-    position: fixed !important;
-    inset: 0 !important;
-    z-index: 96 !important;
-    background: rgba(4, 9, 22, 0.68) !important;
-    backdrop-filter: blur(4px) !important;
-    -webkit-backdrop-filter: blur(4px) !important;
-    opacity: 0 !important;
-    pointer-events: none !important;
-    transition: opacity 0.25s ease !important;
-  }
-
-  .mobile-more-backdrop.is-visible {
-    opacity: 1 !important;
-    pointer-events: auto !important;
-  }
-
-  .mobile-more-drawer {
-    display: flex !important;
-    position: fixed !important;
-    bottom: calc(58px + env(safe-area-inset-bottom, 8px)) !important;
-    left: 12px !important;
-    right: 12px !important;
-    z-index: 97 !important;
-    background: linear-gradient(185deg, rgba(28, 41, 66, 0.98) 0%, rgba(18, 27, 50, 0.99) 100%) !important;
-    backdrop-filter: blur(28px) !important;
-    -webkit-backdrop-filter: blur(28px) !important;
-    border: 1px solid rgba(255, 255, 255, 0.12) !important;
-    border-radius: 20px !important;
-    box-shadow: 0 -8px 36px rgba(0, 0, 0, 0.6), 0 0 0 1px rgba(245, 166, 35, 0.15) !important;
-    padding: 16px !important;
-    flex-direction: column !important;
-    gap: 12px !important;
-    transform: translateY(20px) scale(0.97) !important;
-    opacity: 0 !important;
-    pointer-events: none !important;
-    transition: all 0.25s cubic-bezier(0.16, 1, 0.3, 1) !important;
-  }
-
-  .mobile-more-drawer.is-open {
-    transform: translateY(0) scale(1) !important;
-    opacity: 1 !important;
-    pointer-events: auto !important;
-  }
-
-  .mobile-more-handle {
-    width: 36px !important;
-    height: 4px !important;
-    background: rgba(255, 255, 255, 0.2) !important;
-    border-radius: 4px !important;
-    margin: 0 auto 4px !important;
-  }
-
-  .mobile-more-header {
-    display: flex !important;
-    align-items: center !important;
-    justify-content: space-between !important;
-    padding-bottom: 8px !important;
-    border-bottom: 1px solid rgba(255, 255, 255, 0.08) !important;
-  }
-
-  .mobile-more-title {
-    font-size: 14px !important;
-    font-weight: 800 !important;
-    color: var(--cream, #F5F1EA) !important;
-  }
-
-  .mobile-more-close-btn {
-    background: rgba(255, 255, 255, 0.08) !important;
-    border: none !important;
-    color: #BAC7DE !important;
-    width: 28px !important;
-    height: 28px !important;
-    border-radius: 50% !important;
-    display: flex !important;
-    align-items: center !important;
-    justify-content: center !important;
-    cursor: pointer !important;
-    font-size: 12px !important;
-  }
-
-  .mobile-more-grid {
-    display: flex !important;
-    flex-direction: column !important;
-    gap: 8px !important;
-  }
-
-  .mobile-more-item {
-    display: flex !important;
-    align-items: center !important;
-    gap: 12px !important;
-    padding: 10px 12px !important;
-    border-radius: 12px !important;
-    background: rgba(255, 255, 255, 0.04) !important;
-    border: 1px solid rgba(255, 255, 255, 0.06) !important;
-    text-decoration: none !important;
-    color: inherit !important;
-    transition: all 0.2s ease !important;
-    -webkit-tap-highlight-color: transparent !important;
-  }
-
-  .mobile-more-item:active {
-    background: rgba(245, 166, 35, 0.14) !important;
-    border-color: rgba(245, 166, 35, 0.35) !important;
-    transform: scale(0.98) !important;
-  }
-
-  .mobile-more-icon-box {
-    width: 36px !important;
-    height: 36px !important;
-    border-radius: 10px !important;
-    background: rgba(245, 166, 35, 0.12) !important;
-    color: var(--orange, #F5A623) !important;
-    display: flex !important;
-    align-items: center !important;
-    justify-content: center !important;
-    flex-shrink: 0 !important;
-  }
-
-  .mobile-more-text {
-    display: flex !important;
-    flex-direction: column !important;
-    gap: 2px !important;
-    flex: 1 !important;
-  }
-
-  .mobile-more-item-label {
-    display: flex !important;
-    align-items: center !important;
-    gap: 8px !important;
-    font-size: 13px !important;
-    font-weight: 700 !important;
-    color: var(--cream, #F5F1EA) !important;
-  }
-
-  .mobile-more-badge {
-    font-size: 9px !important;
-    font-weight: 800 !important;
-    padding: 1px 6px !important;
-    border-radius: 999px !important;
-    background: rgba(232, 88, 66, 0.2) !important;
-    color: #FF8777 !important;
-    border: 1px solid rgba(232, 88, 66, 0.4) !important;
-  }
-
-  .mobile-more-item-subtitle {
-    font-size: 11px !important;
-    color: #8C9BB4 !important;
   }
 
   /* 5. Mobile Hero Slider (Wide artwork, readable title, Watch Now + Details actions) */
@@ -9465,21 +9311,6 @@ select:focus-visible {
     align-items: center !important;
     justify-content: center !important;
     box-shadow: 0 2px 6px rgba(0, 0, 0, 0.45) !important;
-  }
-
-  .mobile-tab-dot {
-    position: absolute;
-    top: 2px;
-    left: 2px;
-    width: 7px;
-    height: 7px;
-    border-radius: 50%;
-    background: var(--orange);
-  }
-
-  .mobile-more-drawer {
-    bottom: calc(74px + env(safe-area-inset-bottom, 10px)) !important;
-    border-radius: 24px !important;
   }
 
   /* Compact Horizontal Worlds Strip on Mobile */
