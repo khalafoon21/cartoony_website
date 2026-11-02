@@ -353,13 +353,6 @@ export const defaultNavItems: NavItem[] = [
     icon: "series",
   },
   {
-    id: "categories",
-    label: "التصنيفات",
-    subtitle: "تصفح حسب المزاج",
-    href: "/#categories",
-    icon: "categories",
-  },
-  {
     id: "saved",
     label: "قائمتي المفضلة",
     subtitle: "حكاياتك المحفوظة",
@@ -390,7 +383,7 @@ export function Sidebar({ activeSection, className = "" }: SidebarProps) {
     } else if (pathname?.startsWith("/series") || pathname?.startsWith("/watch/series")) {
       setActiveId("series");
     } else if (pathname?.startsWith("/category")) {
-      setActiveId("categories");
+      setActiveId("home");
     } else if (pathname === "/") {
       setActiveId("home");
     } else if (activeSection) {
@@ -402,7 +395,7 @@ export function Sidebar({ activeSection, className = "" }: SidebarProps) {
   useEffect(() => {
     if (pathname !== "/") return;
 
-    const sectionIds = ["home", "categories", "saved"];
+    const sectionIds = ["home", "saved"];
     const elements = sectionIds
       .map((id) => document.getElementById(id))
       .filter((el): el is HTMLElement => el !== null);
@@ -452,6 +445,7 @@ export function Sidebar({ activeSection, className = "" }: SidebarProps) {
             block: "start",
           });
           window.history.pushState(null, "", hash);
+          window.dispatchEvent(new HashChangeEvent("hashchange"));
         }
       } else if (item.href === "/" && pathname === "/") {
         e.preventDefault();

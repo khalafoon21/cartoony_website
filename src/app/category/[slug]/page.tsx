@@ -2,7 +2,6 @@ import Link from "next/link";
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 import type { CSSProperties } from "react";
-import { CategoryStrip } from "@/components/category-strip";
 import { Icon } from "@/components/icon";
 import { CategoryArt } from "@/components/illustrations";
 import { MovieCard } from "@/components/movie-card";
@@ -94,8 +93,6 @@ export default async function CategoryPage({
           </Link>
         </div>
       </section>
-
-      <CategoryStrip activeSlug={activeCategory.slug} />
 
       <section className="stories-section content-section" aria-labelledby="category-stories-title">
         <div className="section-heading">

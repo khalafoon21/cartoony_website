@@ -31,7 +31,11 @@ export type IconName =
   | "pip"
   | "reload"
   | "share"
-  | "theater";
+  | "theater"
+  | "clapper"
+  | "monitor"
+  | "clock"
+  | "info";
 
 const paths: Record<IconName, React.ReactNode> = {
   home: <><path d="m3 10 9-7 9 7v10a1 1 0 0 1-1 1h-5v-7H9v7H4a1 1 0 0 1-1-1Z" /></>,
@@ -139,6 +143,31 @@ const paths: Record<IconName, React.ReactNode> = {
     <>
       <rect x="2" y="5" width="20" height="14" rx="3" />
       <path d="M8 9H5v6h3M16 9h3v6h-3" />
+    </>
+  ),
+  clapper: (
+    <>
+      <rect x="3" y="4" width="18" height="16" rx="2.5" />
+      <path d="M3 9h18M7.5 4 10 9M13.5 4 16 9" />
+    </>
+  ),
+  monitor: (
+    <>
+      <rect x="3" y="4" width="18" height="13" rx="2.5" />
+      <path d="M8 21h8M12 17v4" />
+    </>
+  ),
+  clock: (
+    <>
+      <circle cx="12" cy="12" r="9" />
+      <polyline points="12 7.5 12 12 15.2 14" />
+    </>
+  ),
+  info: (
+    <>
+      <circle cx="12" cy="12" r="9" />
+      <path d="M12 11v5" />
+      <circle cx="12" cy="8" r="0.6" fill="currentColor" />
     </>
   ),
 };

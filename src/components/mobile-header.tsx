@@ -23,6 +23,7 @@ export function MobileHeader() {
             block: "start",
           });
           window.history.pushState(null, "", "#saved");
+          window.dispatchEvent(new HashChangeEvent("hashchange"));
         }
       }
     },
@@ -32,38 +33,21 @@ export function MobileHeader() {
   return (
     <header className="mobile-app-header" aria-label="ترويسة الموقع للهواتف">
       <div className="mobile-header-inner">
-        {/* Brand & Slogan */}
+        {/* Brand Logo */}
         <Link href="/" className="mobile-header-brand" aria-label="كارتوني — الرئيسية">
           <div className="mobile-header-logo-glow" aria-hidden="true" />
           <Image
             src="/branding/cartoony-logo.png"
             alt="كارتوني"
-            width={40}
-            height={40}
+            width={116}
+            height={54}
             className="mobile-header-logo-img"
             priority
           />
-          <div className="mobile-header-text">
-            <span className="mobile-header-title">
-              كارتوني<span className="mobile-header-dot">.</span>
-            </span>
-            <span className="mobile-header-tagline">لكل حكاية عالم</span>
-          </div>
         </Link>
 
-        {/* Quick Search Pill & Watchlist Button (Hide search pill when already on /search) */}
+        {/* Watchlist Button */}
         <div className="mobile-header-actions">
-          {!pathname?.startsWith("/search") && (
-            <Link
-              href="/search"
-              className="mobile-header-search-pill"
-              aria-label="البحث الذكي في كارتوني"
-            >
-              <Icon name="search" size={16} />
-              <span>ابحث...</span>
-            </Link>
-          )}
-
           <Link
             href="/#saved"
             onClick={handleSavedClick}

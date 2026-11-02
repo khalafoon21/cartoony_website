@@ -38,21 +38,6 @@ const moreDrawerItems: MoreDrawerItem[] = [
     href: "/#saved",
     icon: "saved",
   },
-  {
-    id: "categories",
-    label: "التصنيفات",
-    subtitle: "تصفح حسب المزاج والأجواء",
-    href: "/#categories",
-    icon: "categories",
-  },
-  {
-    id: "franchises",
-    label: "عوالم كارتوني",
-    subtitle: "السلاسل والشخصيات المميزة",
-    href: "/#franchises",
-    icon: "franchises",
-    badge: "حصري",
-  },
 ];
 
 export function MobileBottomNav() {
@@ -102,6 +87,7 @@ export function MobileBottomNav() {
             block: "start",
           });
           window.history.pushState(null, "", hash);
+          window.dispatchEvent(new HashChangeEvent("hashchange"));
         }
       }
     },

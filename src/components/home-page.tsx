@@ -1,24 +1,31 @@
 "use client";
 
-import { useMemo, useState, type CSSProperties } from "react";
+import {
+  useCallback,
+  useEffect,
+  useLayoutEffect,
+  useMemo,
+  useRef,
+  useState,
+  type CSSProperties,
+} from "react";
 import type { HomepageSectionConfig, Movie } from "@/lib/movies";
 import { useWatchlist } from "@/lib/use-watchlist";
-import { CategoryStrip } from "./category-strip";
 import { HeroSlider } from "./hero-slider";
-import { Icon } from "./icon";
+import { Icon, type IconName } from "./icon";
 import { MovieRow } from "./movie-row";
 
-type QuickFilterKey = "all" | "movie" | "series" | "dubbed" | "subtitled" | "saved";
+type QuickFilterKey = "all" | "movie" | "series" | "latest" | "saved";
 
-const QUICK_FILTERS: Array<{
-  key: QuickFilterKey;
+const SEGMENTED_TABS: Array<{
+  key: Exclude<QuickFilterKey, "all">;
   label: string;
+  icon: IconName;
 }> = [
-  { key: "all", label: "الكل" },
-  { key: "movie", label: "أفلام" },
-  { key: "series", label: "مسلسلات" },
-  { key: "dubbed", label: "مدبلج عربي" },
-  { key: "subtitled", label: "مترجم" },
+  { key: "movie", label: "الأفلام", icon: "clapper" },
+  { key: "series", label: "المسلسلات", icon: "monitor" },
+  { key: "latest", label: "الأخيرة", icon: "clock" },
+  { key: "saved", label: "المفضلة", icon: "heart" },
 ];
 
 function matchesQuickFilter(movie: Movie, filter: QuickFilterKey, savedIds: string[]): boolean {
@@ -29,67 +36,11 @@ function matchesQuickFilter(movie: Movie, filter: QuickFilterKey, savedIds: stri
       return movie.format === "movie";
     case "series":
       return movie.format === "series";
-    case "dubbed":
-      return movie.audioBadge === "مدبلج";
-    case "subtitled":
-      return movie.audioBadge === "مترجم";
+    case "latest":
+      return Boolean(movie.recentlyAdded);
     case "saved":
       return savedIds.includes(movie.id);
   }
-}
-
-function CompactWorldsStrip({
-  slides,
-  selected,
-  onSelect,
-}: {
-  slides: Movie[];
-  selected: number;
-  onSelect: (index: number) => void;
-}) {
-  if (slides.length <= 1) return null;
-
-  return (
-    <section className="franchises" id="franchises" aria-label="عوالم كارتوني المميزة">
-      <div className="franchises-bar-header">
-        <span className="franchises-bar-label">
-          <Icon name="sparkles" size={14} />
-          <span>عوالم العرض المميز</span>
-        </span>
-        <span className="franchises-bar-hint">اختر حكاية لتبديل مسرح العرض</span>
-      </div>
-      <div
-        className="franchise-track published-franchise-track"
-        style={{ "--franchise-count": slides.length } as CSSProperties}
-      >
-        {slides.map((movie, index) => {
-          const isSelected = selected === index;
-          return (
-            <button
-              key={movie.id}
-              type="button"
-              style={{ "--franchise-accent": movie.accent } as CSSProperties}
-              className={`franchise franchise-${movie.theme} ${isSelected ? "selected" : ""}`}
-              onClick={() => onSelect(index)}
-              aria-pressed={isSelected}
-            >
-              <span className="franchise-glow" aria-hidden="true" />
-              <span className="franchise-star" aria-hidden="true">
-                {["✦", "◌", "≋", "☀", "☁"][index % 5]}
-              </span>
-              <span className="franchise-title">{movie.franchise || movie.title}</span>
-              {movie.englishTitle && (
-                <span className="franchise-english" dir="ltr">
-                  {movie.englishTitle}
-                </span>
-              )}
-              <span className="franchise-torch" aria-hidden="true" />
-            </button>
-          );
-        })}
-      </div>
-    </section>
-  );
 }
 
 export function HomePage({
@@ -104,8 +55,17 @@ export function HomePage({
   dbError?: string;
 }) {
   const [selected, setSelected] = useState(0);
-  const [activeFilter, setActiveFilter] = useState<QuickFilterKey>("all");
+  const [activeFilter, setActiveFilter] = useState<QuickFilterKey>("movie");
   const { savedIds, toggleSave, clearWatchlist } = useWatchlist();
+
+  const trackRef = useRef<HTMLDivElement | null>(null);
+  const tabRefs = useRef<Record<string, HTMLButtonElement | null>>({});
+  const [glider, setGlider] = useState<{
+    left: number;
+    width: number;
+    visible: boolean;
+    ready: boolean;
+  }>({ left: 0, width: 0, visible: false, ready: false });
 
   const safeIndex =
     heroSlides.length > 0
@@ -113,7 +73,7 @@ export function HomePage({
       : 0;
   const currentMovie = heroSlides[safeIndex] ?? null;
 
-  // Build deduplicated pool of all known movies/series for resolving saved items
+  // Build deduplicated pool of all known movies/series for resolving saved & latest items
   const catalogPool = useMemo(() => {
     const map = new Map<string, Movie>();
     for (const item of allMovies) map.set(item.id, item);
@@ -130,8 +90,55 @@ export function HomePage({
     return savedIds.map((id) => byId.get(id)).filter((m): m is Movie => Boolean(m));
   }, [catalogPool, savedIds]);
 
-  const filteredSections = useMemo(() => {
-    return sections
+  // Latest items: prioritize flagged recentlyAdded items, then newest catalogPool entries
+  const latestMoviesPool = useMemo(() => {
+    const flagged = catalogPool.filter((m) => m.recentlyAdded);
+    const rest = catalogPool
+      .filter((m) => !flagged.some((f) => f.id === m.id))
+      .sort((a, b) => (b.year || 0) - (a.year || 0));
+    return [...flagged, ...rest];
+  }, [catalogPool]);
+
+  const filteredSections = useMemo((): HomepageSectionConfig[] => {
+    if (activeFilter === "all") {
+      return sections;
+    }
+
+    if (activeFilter === "latest") {
+      const latestAll = latestMoviesPool.slice(0, 16);
+      const latestFilms = latestMoviesPool.filter((m) => m.format === "movie").slice(0, 12);
+      const latestSeries = latestMoviesPool.filter((m) => m.format === "series").slice(0, 12);
+
+      const rows: HomepageSectionConfig[] = [];
+      if (latestAll.length > 0) {
+        rows.push({
+          id: "recently-added",
+          eyebrow: "جديد مكتبة كارتوني",
+          title: "أُضيف حديثاً",
+          subtitle: "أحدث الأفلام والمسلسلات المنشورة في كارتوني",
+          items: latestAll,
+        });
+      }
+      if (latestFilms.length > 0 && latestSeries.length > 0) {
+        rows.push({
+          id: "cartoon-movies",
+          eyebrow: "سهرات سينمائية جديدة",
+          title: "أحدث الأفلام",
+          subtitle: "أحدث أفلام الرسوم المتحركة المضافة للمكتبة",
+          items: latestFilms,
+        });
+        rows.push({
+          id: "cartoon-series",
+          eyebrow: "حلقات ومواسم جديدة",
+          title: "أحدث المسلسلات",
+          subtitle: "أحدث مسلسلات الكرتون والأنمي المضافة للمكتبة",
+          items: latestSeries,
+        });
+      }
+      return rows;
+    }
+
+    const bySection = sections
       .map((section) => ({
         ...section,
         items: section.items.filter((item) =>
@@ -139,12 +146,61 @@ export function HomePage({
         ),
       }))
       .filter((section) => section.items.length > 0);
-  }, [sections, activeFilter, savedIds]);
+
+    return bySection;
+  }, [sections, activeFilter, savedIds, latestMoviesPool]);
 
   const filteredFallbackItems = useMemo(() => {
-    if (activeFilter === "all") return [];
+    if (activeFilter === "all" || activeFilter === "latest") return [];
     return catalogPool.filter((item) => matchesQuickFilter(item, activeFilter, savedIds));
   }, [catalogPool, activeFilter, savedIds]);
+
+  // Measure active tab position & width for the sliding pill glider
+  const updateGlider = useCallback(() => {
+    if (activeFilter === "all") {
+      setGlider((prev) => ({ ...prev, visible: false, ready: true }));
+      return;
+    }
+    const btn = tabRefs.current[activeFilter];
+    if (!btn) {
+      setGlider((prev) => ({ ...prev, visible: false, ready: true }));
+      return;
+    }
+    setGlider({
+      left: btn.offsetLeft,
+      width: btn.offsetWidth,
+      visible: true,
+      ready: true,
+    });
+  }, [activeFilter]);
+
+  useLayoutEffect(() => {
+    updateGlider();
+  }, [updateGlider, savedMovies.length]);
+
+  useEffect(() => {
+    const track = trackRef.current;
+    if (!track) return;
+    const ro = new ResizeObserver(() => updateGlider());
+    ro.observe(track);
+    window.addEventListener("resize", updateGlider);
+    return () => {
+      ro.disconnect();
+      window.removeEventListener("resize", updateGlider);
+    };
+  }, [updateGlider]);
+
+  // Sync with #saved hash navigation from header/sidebar
+  useEffect(() => {
+    const checkHash = () => {
+      if (window.location.hash === "#saved") {
+        setActiveFilter("saved");
+      }
+    };
+    checkHash();
+    window.addEventListener("hashchange", checkHash);
+    return () => window.removeEventListener("hashchange", checkHash);
+  }, []);
 
   return (
     <>
@@ -161,57 +217,62 @@ export function HomePage({
           errorMessage={dbError}
         />
 
-        <CompactWorldsStrip slides={heroSlides} selected={safeIndex} onSelect={setSelected} />
-
-        <CategoryStrip />
-
-        {/* Smart Instant Filter Bar */}
+        {/* Modern Segmented Capsule Filter Bar (Movies · Series · Latest · Fav) */}
         {catalogPool.length > 0 && (
-          <section className="homepage-quick-filter-section content-section" aria-label="تصفية سريعة للعروض">
-            <div className="quick-filter-bar">
-              <div className="quick-filter-pills" role="tablist" aria-label="فلترة العروض حسب النوع">
-                {QUICK_FILTERS.map((f) => {
-                  const isActive = activeFilter === f.key;
+          <section
+            className="homepage-quick-filter-section content-section"
+            aria-label="تصفية سريعة للعروض"
+          >
+            <div className="segmented-capsule-wrap">
+              <div
+                ref={trackRef}
+                className={`segmented-capsule-bar ${glider.ready ? "is-glider-ready" : ""}`}
+                role="tablist"
+                aria-label="تصفح حسب القسم"
+              >
+                <span
+                  className={`segmented-capsule-glider ${glider.visible ? "is-visible" : ""}`}
+                  style={
+                    {
+                      width: `${glider.width}px`,
+                      transform: `translate3d(${glider.left}px, 0, 0)`,
+                    } as CSSProperties
+                  }
+                  aria-hidden="true"
+                />
+
+                {SEGMENTED_TABS.map((tab) => {
+                  const isActive = activeFilter === tab.key;
+                  const iconName: IconName =
+                    tab.key === "saved" && savedMovies.length > 0 ? "heartFilled" : tab.icon;
+
                   return (
                     <button
-                      key={f.key}
+                      key={tab.key}
+                      ref={(el) => {
+                        tabRefs.current[tab.key] = el;
+                      }}
                       type="button"
                       role="tab"
                       aria-selected={isActive}
-                      className={`quick-filter-pill ${isActive ? "is-active" : ""}`}
-                      onClick={() => setActiveFilter(f.key)}
+                      className={`segmented-capsule-tab ${isActive ? "is-active" : ""}`}
+                      onClick={() =>
+                        setActiveFilter((prev) => (prev === tab.key ? "all" : tab.key))
+                      }
                     >
-                      <span>{f.label}</span>
+                      <span className="segmented-tab-icon" aria-hidden="true">
+                        <Icon name={iconName} size={18} />
+                      </span>
+                      <span className="segmented-tab-label" data-label={tab.label}>
+                        <span>{tab.label}</span>
+                      </span>
+                      {tab.key === "saved" && savedMovies.length > 0 && (
+                        <span className="segmented-tab-badge">{savedMovies.length}</span>
+                      )}
                     </button>
                   );
                 })}
-                <button
-                  type="button"
-                  role="tab"
-                  aria-selected={activeFilter === "saved"}
-                  className={`quick-filter-pill is-watchlist-pill ${
-                    activeFilter === "saved" ? "is-active" : ""
-                  }`}
-                  onClick={() => setActiveFilter(activeFilter === "saved" ? "all" : "saved")}
-                >
-                  <Icon name={savedMovies.length > 0 ? "heartFilled" : "heart"} size={13} />
-                  <span>قائمتي المفضلة</span>
-                  {savedMovies.length > 0 && (
-                    <span className="quick-filter-count">{savedMovies.length}</span>
-                  )}
-                </button>
               </div>
-
-              {activeFilter !== "all" && (
-                <button
-                  type="button"
-                  className="quick-filter-reset"
-                  onClick={() => setActiveFilter("all")}
-                >
-                  <span>إعادة ضبط الفلتر</span>
-                  <Icon name="close" size={12} />
-                </button>
-              )}
             </div>
           </section>
         )}
@@ -224,10 +285,46 @@ export function HomePage({
           </div>
         )}
 
-        <div id="stories" className="homepage-rows-stack">
+        <div id="stories" key={activeFilter} className="homepage-rows-stack is-tab-transition">
           {/* Persistent Watchlist Section (#saved) */}
           <div id="saved">
-            {savedMovies.length > 0 ? (
+            {activeFilter === "saved" ? (
+              savedMovies.length > 0 ? (
+                <MovieRow
+                  id="watchlist-row"
+                  eyebrow="مكتبتك الخاصة"
+                  title="قائمتي المفضلة"
+                  subtitle="الأعمال التي حفظتها للعودة إليها ومشاهدتها في أي وقت"
+                  movies={savedMovies}
+                  savedIds={savedIds}
+                  onToggleSave={toggleSave}
+                  featuredId={currentMovie?.id}
+                  badgeCount={savedMovies.length}
+                  onClearAll={clearWatchlist}
+                />
+              ) : (
+                <section className="movie-row-section content-section">
+                  <div className="watchlist-empty-card">
+                    <div className="watchlist-empty-icon">
+                      <Icon name="heart" size={24} />
+                    </div>
+                    <div className="watchlist-empty-text">
+                      <h3>قائمتك المفضلة فارغة حالياً</h3>
+                      <p>
+                        اضغط على أيقونة القلب ♥ على أي فيلم أو مسلسل لحفظه هنا والوصول إليه سريعاً في أي وقت.
+                      </p>
+                    </div>
+                    <button
+                      type="button"
+                      className="text-button"
+                      onClick={() => setActiveFilter("movie")}
+                    >
+                      <span>استكشف الأفلام والعروض</span>
+                    </button>
+                  </div>
+                </section>
+              )
+            ) : activeFilter === "all" && savedMovies.length > 0 ? (
               <MovieRow
                 id="watchlist-row"
                 eyebrow="مكتبتك الخاصة"
@@ -240,25 +337,6 @@ export function HomePage({
                 badgeCount={savedMovies.length}
                 onClearAll={clearWatchlist}
               />
-            ) : activeFilter === "saved" ? (
-              <section className="movie-row-section content-section">
-                <div className="watchlist-empty-card">
-                  <div className="watchlist-empty-icon">
-                    <Icon name="heart" size={24} />
-                  </div>
-                  <div className="watchlist-empty-text">
-                    <h3>قائمتك المفضلة فارغة حالياً</h3>
-                    <p>اضغط على أيقونة القلب ♥ على أي فيلم أو مسلسل لحفظه هنا والوصول إليه سريعاً في أي وقت.</p>
-                  </div>
-                  <button
-                    type="button"
-                    className="text-button"
-                    onClick={() => setActiveFilter("all")}
-                  >
-                    <span>استكشف كل العروض</span>
-                  </button>
-                </div>
-              </section>
             ) : null}
           </div>
 
@@ -297,17 +375,19 @@ export function HomePage({
             ) : filteredFallbackItems.length > 0 ? (
               <MovieRow
                 id="filtered-results"
-                eyebrow="نتائج الفلترة"
-                title="العروض المطابقة لاختيارك"
+                eyebrow={activeFilter === "series" ? "حلقات متسلسلة" : "سهرات سينمائية"}
+                title={activeFilter === "series" ? "مسلسلات كرتون" : "أفلام كرتون"}
                 movies={filteredFallbackItems}
                 savedIds={savedIds}
                 onToggleSave={toggleSave}
                 featuredId={currentMovie?.id}
+                viewAllHref={activeFilter === "series" ? "/series" : "/movies"}
+                viewAllLabel={activeFilter === "series" ? "كل المسلسلات" : "كل الأفلام"}
               />
             ) : (
               <section className="movie-row-section content-section">
                 <div className="public-state-box" role="status">
-                  <p>لا توجد عروض مطابقة لهذا الفلتر حالياً.</p>
+                  <p>لا توجد عروض مطابقة لهذا القسم حالياً.</p>
                 </div>
               </section>
             ))}

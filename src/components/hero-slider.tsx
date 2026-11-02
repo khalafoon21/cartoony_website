@@ -21,7 +21,7 @@ export function HeroSlider({
   slides,
   activeIndex,
   savedIds,
-  autoPlayMs = 7000,
+  autoPlayMs = 8000,
   onSelectSlide,
   onToggleSave,
   errorMessage,
@@ -138,7 +138,6 @@ export function HeroSlider({
       style={
         {
           "--theme-accent": movie.accent,
-          "--autoplay-ms": `${autoPlayMs}ms`,
         } as CSSProperties
       }
       onMouseEnter={() => setIsPaused(true)}
@@ -244,9 +243,9 @@ export function HeroSlider({
             className="secondary-button is-details-btn"
             href={detailsHref}
             aria-label={`تفاصيل: ${movie.title}`}
+            title="التفاصيل"
           >
-            <Icon name="sparkles" size={16} />
-            <span>التفاصيل</span>
+            <Icon name="info" size={20} />
           </Link>
 
           <button
@@ -266,53 +265,6 @@ export function HeroSlider({
         </div>
       </div>
 
-      {count > 1 && (
-        <div className="hero-pagination" role="group" aria-label="التنقل بين الحكايات المميزة">
-          <span className="slide-count" dir="ltr">
-            <b>{String(safeIndex + 1).padStart(2, "0")}</b> / {String(count).padStart(2, "0")}
-          </span>
-
-          <div className="hero-indicators">
-            {slides.map((item, i) => {
-              const isActive = i === safeIndex;
-              return (
-                <button
-                  key={item.id}
-                  type="button"
-                  aria-label={`عرض ${item.title}`}
-                  aria-pressed={isActive}
-                  title={item.title}
-                  className={`hero-indicator-btn ${isActive ? "active" : ""} ${
-                    isPaused ? "is-paused" : ""
-                  }`}
-                  onClick={() => onSelectSlide(i)}
-                />
-              );
-            })}
-          </div>
-
-          <span className="pagination-line" aria-hidden="true" />
-
-          <div className="hero-nav-arrows">
-            <button
-              type="button"
-              className="hero-arrow-btn"
-              onClick={handlePrev}
-              aria-label="الحكاية السابقة"
-            >
-              <Icon name="arrow" size={15} style={{ rotate: "180deg" }} />
-            </button>
-            <button
-              type="button"
-              className="hero-arrow-btn"
-              onClick={handleNext}
-              aria-label="الحكاية التالية"
-            >
-              <Icon name="arrow" size={15} />
-            </button>
-          </div>
-        </div>
-      )}
     </section>
   );
 }

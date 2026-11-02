@@ -1,5 +1,4 @@
 import Link from "next/link";
-import { CategoryStrip } from "@/components/category-strip";
 import { Icon } from "@/components/icon";
 import { MovieCard } from "@/components/movie-card";
 import { getPublicPublishedMovies } from "@/lib/movies-public";
@@ -43,8 +42,6 @@ export default async function MoviesListingPage() {
           </Link>
         </div>
       </section>
-
-      <CategoryStrip activeSlug="movies" />
 
       <section
         className="stories-section content-section"
